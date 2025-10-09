@@ -21,7 +21,7 @@
 #==============================================================================
 
 # The metric reporter server host.
-nexmark.metric.reporter.host: localhost
+nexmark.metric.reporter.host: 142.150.234.180
 # The metric reporter server port.
 nexmark.metric.reporter.port: 9098
 
