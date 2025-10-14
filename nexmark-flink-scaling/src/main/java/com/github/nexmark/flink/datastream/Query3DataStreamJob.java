@@ -14,6 +14,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple4;
+// import org.apache.flink.api.java.utils.ParameterTool;
+// import org.apache.flink.client.cli.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -25,7 +27,9 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.util.Collector;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -36,15 +40,28 @@ public class Query3DataStreamJob {
 	private static final Set<String> TARGET_STATES = new HashSet<>(Arrays.asList("OR", "ID", "CA"));
 	private static final long TARGET_CATEGORY = 10L;
 
-	private static final int SOURCE_PARALLELISM = 4;
-	private static final int FILTER_PARALLELISM = SOURCE_PARALLELISM;
-	private static final int JOIN_PARALLELISM = 1;
+	private static final int DEFAULT_SOURCE_PARALLELISM = 1;
+	private static final int DEFAULT_FILTER_PARALLELISM = DEFAULT_SOURCE_PARALLELISM;
+	private static final int DEFAULT_JOIN_PARALLELISM = 1;
+	private static final String DEFAULT_JOB_NAME = "Nexmark Query3 DataStream";
 
 	public static void main(String[] args) throws Exception {
+		Map<String, String> params = parseArgs(args);
+
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		// env.disableOperatorChaining();
 
-		NexmarkConfiguration configuration = defaultConfiguration();
+		int sourceParallelism = params.containsKey("source-parallelism")
+			? Integer.parseInt(params.get("source-parallelism"))
+			: DEFAULT_SOURCE_PARALLELISM;
+		int filterParallelism = params.containsKey("filter-parallelism")
+			? Integer.parseInt(params.get("filter-parallelism"))
+			: sourceParallelism;
+		int joinParallelism = params.containsKey("join-parallelism")
+			? Integer.parseInt(params.get("join-parallelism"))
+			: DEFAULT_JOIN_PARALLELISM;
+
+		NexmarkConfiguration configuration = configurationFromParameters(params, sourceParallelism);
 		NexmarkSource nexmarkSource = NexmarkSourceFactory.forDataStream(configuration);
 
 		// TODO: add watermark on dateTime field and minibatch
@@ -55,7 +72,7 @@ public class Query3DataStreamJob {
 		*/
 		DataStream<RowData> events = env
 			.fromSource(nexmarkSource, WatermarkStrategy.noWatermarks(), "Nexmark Source")
-			.setParallelism(SOURCE_PARALLELISM)
+			.setParallelism(sourceParallelism)
 			.slotSharingGroup("src");
 
 		/*
@@ -65,7 +82,7 @@ public class Query3DataStreamJob {
 			.flatMap(new AuctionProjector())
 			.name("Auction Select + Filter")
 			.returns(TypeInformation.of(SimpleAuction.class))
-			.setParallelism(FILTER_PARALLELISM)
+			.setParallelism(filterParallelism)
 			.slotSharingGroup("src");
 
 		/*
@@ -75,7 +92,7 @@ public class Query3DataStreamJob {
 			.flatMap(new PersonProjector())
 			.name("Person Select + Filter")
 			.returns(TypeInformation.of(SimplePerson.class))
-			.setParallelism(FILTER_PARALLELISM)
+			.setParallelism(filterParallelism)
 			.slotSharingGroup("src");
 
 		/*
@@ -92,17 +109,61 @@ public class Query3DataStreamJob {
 			.connect(keyedPersons)
 			.flatMap(new JoinPersonsWithAuctions())
 			.name("Incremental Join")
-			.setParallelism(JOIN_PARALLELISM)
+			.setParallelism(joinParallelism)
 			.slotSharingGroup("join");
 
-		joined.sinkTo(new DiscardingSink<>());
+		joined
+			.sinkTo(new DiscardingSink<>())
+			.setParallelism(joinParallelism)
+			.slotSharingGroup("join");
 
-		env.execute("Nexmark Query3 DataStream");
+		String jobName = params.getOrDefault("job-name", DEFAULT_JOB_NAME);
+		env.execute(jobName);
 	}
 
-	private static NexmarkConfiguration defaultConfiguration() {
+	private static Map<String, String> parseArgs(String[] args) {
+		Map<String, String> parsed = new HashMap<>();
+		for (int i = 0; i < args.length - 1; i += 2) {
+			String key = args[i];
+			String value = args[i + 1];
+			if (key.startsWith("--")) {
+				parsed.put(key.substring(2), value);
+			}
+		}
+		return parsed;
+	}
+
+	private static NexmarkConfiguration configurationFromParameters(Map<String, String> params, int sourceParallelism) {
+		NexmarkConfiguration configuration = defaultConfiguration(sourceParallelism);
+
+		long events = params.containsKey("events")
+			? Long.parseLong(params.get("events"))
+			: configuration.numEvents;
+		configuration.numEvents = events;
+
+		long tps = params.containsKey("tps")
+			? Long.parseLong(params.get("tps"))
+			: configuration.nextEventRate;
+		int rate = (int) tps;
+		configuration.firstEventRate = rate;
+		configuration.nextEventRate = rate;
+
+		configuration.personProportion = params.containsKey("person-proportion")
+			? Integer.parseInt(params.get("person-proportion"))
+			: configuration.personProportion;
+		configuration.auctionProportion = params.containsKey("auction-proportion")
+			? Integer.parseInt(params.get("auction-proportion"))
+			: configuration.auctionProportion;
+		configuration.bidProportion = params.containsKey("bid-proportion")
+			? Integer.parseInt(params.get("bid-proportion"))
+			: configuration.bidProportion;
+
+		return configuration;
+	}
+
+	private static NexmarkConfiguration defaultConfiguration(int sourceParallelism) {
 		NexmarkConfiguration configuration = new NexmarkConfiguration();
-		configuration.numEventGenerators = 4 * SOURCE_PARALLELISM;
+		configuration.numEventGenerators = sourceParallelism;
 		configuration.firstEventRate = 10000000;
 		configuration.nextEventRate = 10000000;
 		configuration.numEvents = 100000000L;

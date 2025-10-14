@@ -27,6 +27,7 @@ import com.github.nexmark.flink.metric.cpu.CpuMetricReceiver;
 import com.github.nexmark.flink.utils.NexmarkGlobalConfiguration;
 import com.github.nexmark.flink.workload.Workload;
 import com.github.nexmark.flink.workload.WorkloadSuite;
+import com.github.nexmark.flink.QueryRegistry;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Option;
@@ -144,6 +145,10 @@ public class Benchmark {
 				if (isQueryOa && UNSUPPORTED_QUERIES.contains(queryName)) {
 					continue;
 				}
+				if (QueryRegistry.isDataStreamQuery(queryName)) {
+					queryList.add(queryName);
+					continue;
+				}
 				File queryFile = new File(queryLocation.toFile(), queryName + ".sql");
 				if (queryFile.exists()) {
 					queryList.add(queryName);
@@ -154,10 +159,12 @@ public class Benchmark {
 				if (isQueryOa && UNSUPPORTED_QUERIES.contains(queryName)) {
 					continue;
 				}
-				File queryFile = new File(queryLocation.toFile(), queryName + ".sql");
-				if (!queryFile.exists()) {
-					throw new IllegalArgumentException(
-						String.format("The query path \"%s\" does not exist.", queryFile.getAbsolutePath()));
+				if (!QueryRegistry.isDataStreamQuery(queryName)) {
+					File queryFile = new File(queryLocation.toFile(), queryName + ".sql");
+					if (!queryFile.exists()) {
+						throw new IllegalArgumentException(
+							String.format("The query path \"%s\" does not exist.", queryFile.getAbsolutePath()));
+					}
 				}
 				queryList.add(queryName);
 			}

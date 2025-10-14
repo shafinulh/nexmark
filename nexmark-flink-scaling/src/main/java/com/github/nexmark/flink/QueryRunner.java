@@ -35,6 +35,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.github.nexmark.flink.Benchmark.CATEGORY_OA;
 
@@ -49,6 +51,9 @@ public class QueryRunner {
 	private final Path flinkDist;
 	private final MetricReporter metricReporter;
 	private final FlinkRestClient flinkRestClient;
+	private final boolean isDataStreamQuery;
+	private final QueryRegistry.DataStreamQueryDescriptor dataStreamDescriptor;
+	private final Path nexmarkJar;
 
 	public QueryRunner(String queryName, Workload workload, Path location, Path flinkDist, MetricReporter metricReporter, FlinkRestClient flinkRestClient, String category) {
 		this.queryName = queryName;
@@ -59,6 +64,15 @@ public class QueryRunner {
 		this.flinkDist = flinkDist;
 		this.metricReporter = metricReporter;
 		this.flinkRestClient = flinkRestClient;
+		this.isDataStreamQuery = QueryRegistry.isDataStreamQuery(queryName);
+		this.dataStreamDescriptor = isDataStreamQuery ? QueryRegistry.getDataStreamQuery(queryName) : null;
+		this.nexmarkJar = isDataStreamQuery ? locateNexmarkJar(location) : null;
+		if (isDataStreamQuery && workload.getKafkaServers() != null) {
+			throw new IllegalArgumentException("DataStream queries currently support only the built-in generator source.");
+		}
+		if (isDataStreamQuery) {
+			LOG.info("Resolved Nexmark jar for DataStream query {}: {}", queryName, nexmarkJar);
+		}
 	}
 
 	public JobBenchmarkMetric run() {
@@ -122,6 +136,10 @@ public class QueryRunner {
 	}
 
 	private void runWarmup(long tps, long events) throws IOException {
+		if (isDataStreamQuery) {
+			submitDataStreamJob(tps, events, true);
+			return;
+		}
 		Map<String, String> varsMap = initializeVarsMap();
 		if (workload.getKafkaServers() == null) {
 			varsMap.put("TPS", String.valueOf(tps));
@@ -132,10 +150,69 @@ public class QueryRunner {
 	}
 
 	private void runInternal() throws IOException {
+		if (isDataStreamQuery) {
+			submitDataStreamJob(workload.getTps(), workload.getEventsNum(), false);
+			return;
+		}
 		Map<String, String> varsMap = initializeVarsMap();
 		List<String> sqlLines = initializeAllSqlLines(varsMap);
 		submitSQLJob(sqlLines);
 	}
+
+	private void submitDataStreamJob(long tps, long eventsNum, boolean warmup) throws IOException {
+		if (nexmarkJar == null) {
+			throw new IllegalStateException("Nexmark executable jar not found for " + queryName);
+		}
+
+		Path flinkBin = flinkDist.resolve("bin");
+		List<String> commands = new ArrayList<>();
+		commands.add(flinkBin.resolve("flink").toAbsolutePath().toString());
+		commands.add("run");
+		commands.add("-d");
+		commands.add("-c");
+		commands.add(dataStreamDescriptor.getMainClass());
+		commands.add(nexmarkJar.toAbsolutePath().toString());
+		commands.add("--tps");
+		commands.add(String.valueOf(tps));
+		commands.add("--events");
+		commands.add(String.valueOf(eventsNum));
+		commands.add("--person-proportion");
+		commands.add(String.valueOf(workload.getPersonProportion()));
+		commands.add("--auction-proportion");
+		commands.add(String.valueOf(workload.getAuctionProportion()));
+		commands.add("--bid-proportion");
+		commands.add(String.valueOf(workload.getBidProportion()));
+
+		LOG.info("\n================================================================================"
+				+ "\nQuery {} is running as DataStream job."
+				+ "\n--------------------------------------------------------------------------------"
+				+ "\n",
+			queryName);
+
+		AutoClosableProcess
+			.create(commands.toArray(new String[0]))
+			.setStdoutProcessor(LOG::info)
+			.setStderrProcessor(LOG::error)
+			.runBlocking();
+	}
+
+	private static Path locateNexmarkJar(Path location) {
+		Path libDir = location.resolve("lib");
+		if (!Files.isDirectory(libDir)) {
+			throw new IllegalArgumentException("Missing lib directory: " + libDir);
+		}
+
+		try (Stream<Path> paths = Files.list(libDir)) {
+			return paths
+				.filter(path -> path.getFileName().toString().endsWith(".jar"))
+				.filter(path -> path.getFileName().toString().contains("nexmark-flink"))
+				.findFirst()
+				.orElseThrow(() -> new IllegalArgumentException("No nexmark-flink jar found in " + libDir));
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to locate nexmark-flink jar in " + libDir, e);
+		}
+	}
+
 
 	private Map<String, String> initializeVarsMap() {
 		LocalDateTime currentTime = LocalDateTime.now();
