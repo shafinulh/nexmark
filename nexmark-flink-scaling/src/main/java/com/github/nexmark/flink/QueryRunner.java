@@ -172,6 +172,8 @@ public class QueryRunner {
 		commands.add("-c");
 		commands.add(dataStreamDescriptor.getMainClass());
 		commands.add(nexmarkJar.toAbsolutePath().toString());
+		commands.add("--job-name");
+		commands.add(buildDataStreamJobName(warmup));
 		commands.add("--tps");
 		commands.add(String.valueOf(tps));
 		commands.add("--events");
@@ -182,6 +184,10 @@ public class QueryRunner {
 		commands.add(String.valueOf(workload.getAuctionProportion()));
 		commands.add("--bid-proportion");
 		commands.add(String.valueOf(workload.getBidProportion()));
+		workload.getDataStreamArgs().forEach((key, value) -> {
+			commands.add("--" + key);
+			commands.add(value);
+		});
 
 		LOG.info("\n================================================================================"
 				+ "\nQuery {} is running as DataStream job."
@@ -194,6 +200,11 @@ public class QueryRunner {
 			.setStdoutProcessor(LOG::info)
 			.setStderrProcessor(LOG::error)
 			.runBlocking();
+	}
+
+	private String buildDataStreamJobName(boolean warmup) {
+		String baseName = dataStreamDescriptor.getDefaultJobName();
+		return warmup ? baseName + " Warmup" : baseName;
 	}
 
 	private static Path locateNexmarkJar(Path location) {

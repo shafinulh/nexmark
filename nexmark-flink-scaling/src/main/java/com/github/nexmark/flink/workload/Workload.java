@@ -26,6 +26,9 @@ import com.github.nexmark.flink.metric.BenchmarkMetric;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 public class Workload {
@@ -39,9 +42,10 @@ public class Workload {
 	private final long warmupMills;
 	private final long warmupTps;
 	private final long warmupEvents;
+	private final Map<String, String> dataStreamArgs;
 
 	public Workload(long tps, long eventsNum, int personProportion, int auctionProportion, int bidProportion) {
-		this(tps, eventsNum, personProportion, auctionProportion, bidProportion, null, 0L, 0L, 0L);
+		this(tps, eventsNum, personProportion, auctionProportion, bidProportion, null, 0L, 0L, 0L, Collections.emptyMap());
 	}
 
 	public Workload(
@@ -53,7 +57,8 @@ public class Workload {
 			@Nullable String kafkaServers,
 			long warmupMills,
 			long warmupTps,
-			long warmupEvents) {
+			long warmupEvents,
+			Map<String, String> dataStreamArgs) {
 		this.tps = tps;
 		this.eventsNum = eventsNum;
 		this.personProportion = personProportion;
@@ -63,6 +68,11 @@ public class Workload {
 		this.warmupMills = warmupMills;
 		this.warmupTps = warmupTps;
 		this.warmupEvents = warmupEvents;
+		if (dataStreamArgs == null || dataStreamArgs.isEmpty()) {
+			this.dataStreamArgs = Collections.emptyMap();
+		} else {
+			this.dataStreamArgs = Collections.unmodifiableMap(new HashMap<>(dataStreamArgs));
+		}
 	}
 
 	public long getTps() {
@@ -101,6 +111,10 @@ public class Workload {
 		return warmupEvents;
 	}
 
+	public Map<String, String> getDataStreamArgs() {
+		return dataStreamArgs;
+	}
+
 	public void validateWorkload(Duration monitorDuration) {
 		boolean unboundedMonitor = monitorDuration.toNanos() == Long.MAX_VALUE;
 		if (getEventsNum() == 0) {
@@ -130,12 +144,13 @@ public class Workload {
 			personProportion == workload.personProportion &&
 			auctionProportion == workload.auctionProportion &&
 			bidProportion == workload.bidProportion &&
-			Objects.equals(kafkaServers, workload.kafkaServers);
+			Objects.equals(kafkaServers, workload.kafkaServers) &&
+			Objects.equals(dataStreamArgs, workload.dataStreamArgs);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(tps, eventsNum, personProportion, auctionProportion, bidProportion, kafkaServers);
+		return Objects.hash(tps, eventsNum, personProportion, auctionProportion, bidProportion, kafkaServers, dataStreamArgs);
 	}
 
 	public String getSummaryString() {

@@ -21,12 +21,15 @@ package com.github.nexmark.flink.workload;
 import org.apache.flink.configuration.Configuration;
 
 import com.github.nexmark.flink.source.NexmarkSourceOptions;
+import com.github.nexmark.flink.QueryRegistry;
 import org.apache.flink.util.TimeUtils;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -43,6 +46,8 @@ public class WorkloadSuite {
 	private static final String WARMUP_SUFFIX = ".warmup";
 	private static final String WARMUP_DURATION_SUFFIX = ".warmup.duration";
 	private static final String KAFKA_BOOTSTRAP_SERVERS = "kafka.bootstrap.servers";
+	private static final String DATASTREAM_CONF_PREFIX = "nexmark.datastream.";
+	private static final String DATASTREAM_CONF_SUFFIX = ".args";
 
 	private final Map<String, Workload> query2Workload;
 
@@ -131,8 +136,8 @@ public class WorkloadSuite {
 					WORKLOAD_SUITE_CONF_PREFIX + suiteName + WARMUP_SUFFIX + EVENTS_NUM_CONF_SUFFIX,
 					String.valueOf(eventsNum)));
 
-			Workload load = new Workload(
-					tps, eventsNum, personProportion, auctionProportion, bidProportion, kafkaServers, warmupDuration.toMillis(), warmupTps, warmupEventsNum);
+			Workload baseWorkload = new Workload(
+					tps, eventsNum, personProportion, auctionProportion, bidProportion, kafkaServers, warmupDuration.toMillis(), warmupTps, warmupEventsNum, Collections.emptyMap());
 
 			String queriesKey = WORKLOAD_SUITE_CONF_PREFIX + suiteName + categoryQueries;
 			List<String> queries = new ArrayList<>();
@@ -144,6 +149,23 @@ public class WorkloadSuite {
 			}
 
 			for (String q : queries) {
+				Workload load;
+				if (QueryRegistry.isDataStreamQuery(q)) {
+					Map<String, String> dataStreamArgs = parseDataStreamArgs(confMap, q);
+					load = new Workload(
+							tps,
+							eventsNum,
+							personProportion,
+							auctionProportion,
+							bidProportion,
+							kafkaServers,
+							warmupDuration.toMillis(),
+							warmupTps,
+							warmupEventsNum,
+							dataStreamArgs);
+				} else {
+					load = baseWorkload;
+				}
 				Workload old = query2Workload.put(q, load);
 				if (old != null) {
 					throw new IllegalArgumentException(
@@ -153,6 +175,31 @@ public class WorkloadSuite {
 		}
 
 		return new WorkloadSuite(query2Workload);
+	}
+
+	private static Map<String, String> parseDataStreamArgs(Map<String, String> confMap, String queryName) {
+		String key = DATASTREAM_CONF_PREFIX + queryName + DATASTREAM_CONF_SUFFIX;
+		String raw = confMap.get(key);
+		if (raw == null || raw.isEmpty()) {
+			return Collections.emptyMap();
+		}
+		String argsString = removeQuotes(raw);
+		String[] parts = argsString.split(",");
+		Map<String, String> args = new LinkedHashMap<>();
+		for (String part : parts) {
+			String trimmed = part.trim();
+			if (trimmed.isEmpty()) {
+				continue;
+			}
+			int separator = trimmed.indexOf('=');
+			if (separator <= 0 || separator == trimmed.length() - 1) {
+				continue;
+			}
+			String argKey = trimmed.substring(0, separator).trim();
+			String argValue = trimmed.substring(separator + 1).trim();
+			args.put(argKey, argValue);
+		}
+		return args.isEmpty() ? Collections.emptyMap() : args;
 	}
 
 	private static String removeQuotes(String str) {
