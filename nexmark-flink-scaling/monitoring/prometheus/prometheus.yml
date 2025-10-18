@@ -9,6 +9,7 @@ scrape_configs:
       - targets:
           - 142.150.234.180:9249  # JobManager
           - 142.150.234.167:9249  # TaskManager
+          - 142.150.234.163:9249  # TaskManager
         labels:
           cluster: nexmark-flink
     relabel_configs:
