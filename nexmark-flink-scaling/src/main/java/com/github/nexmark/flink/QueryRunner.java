@@ -23,6 +23,9 @@ import com.github.nexmark.flink.metric.JobBenchmarkMetric;
 import com.github.nexmark.flink.metric.MetricReporter;
 import com.github.nexmark.flink.utils.AutoClosableProcess;
 import com.github.nexmark.flink.workload.Workload;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +38,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.github.nexmark.flink.Benchmark.CATEGORY_OA;
@@ -54,6 +56,7 @@ public class QueryRunner {
 	private final boolean isDataStreamQuery;
 	private final QueryRegistry.DataStreamQueryDescriptor dataStreamDescriptor;
 	private final Path nexmarkJar;
+	private final int defaultParallelism;
 
 	public QueryRunner(String queryName, Workload workload, Path location, Path flinkDist, MetricReporter metricReporter, FlinkRestClient flinkRestClient, String category) {
 		this.queryName = queryName;
@@ -67,6 +70,7 @@ public class QueryRunner {
 		this.isDataStreamQuery = QueryRegistry.isDataStreamQuery(queryName);
 		this.dataStreamDescriptor = isDataStreamQuery ? QueryRegistry.getDataStreamQuery(queryName) : null;
 		this.nexmarkJar = isDataStreamQuery ? locateNexmarkJar(location) : null;
+		this.defaultParallelism = resolveDefaultParallelism(flinkDist);
 		if (isDataStreamQuery && workload.getKafkaServers() != null) {
 			throw new IllegalArgumentException("DataStream queries currently support only the built-in generator source.");
 		}
@@ -146,7 +150,7 @@ public class QueryRunner {
 			varsMap.put("EVENTS_NUM", String.valueOf(events));
 		}
 		List<String> sqlLines = initializeAllSqlLines(varsMap);
-		submitSQLJob(sqlLines);
+		submitSQLJob(sqlLines, true);
 	}
 
 	private void runInternal() throws IOException {
@@ -156,7 +160,7 @@ public class QueryRunner {
 		}
 		Map<String, String> varsMap = initializeVarsMap();
 		List<String> sqlLines = initializeAllSqlLines(varsMap);
-		submitSQLJob(sqlLines);
+		submitSQLJob(sqlLines, false);
 	}
 
 	private void submitDataStreamJob(long tps, long eventsNum, boolean warmup) throws IOException {
@@ -204,7 +208,38 @@ public class QueryRunner {
 
 	private String buildDataStreamJobName(boolean warmup) {
 		String baseName = dataStreamDescriptor.getDefaultJobName();
-		return warmup ? baseName + " Warmup" : baseName;
+		String parallelismInfo = buildParallelismInfo();
+		String jobName = parallelismInfo.isEmpty() ? baseName : baseName + " " + parallelismInfo;
+		return warmup ? jobName + " warmup" : jobName;
+	}
+
+	private String buildParallelismInfo() {
+		Map<String, String> dataStreamArgs = workload.getDataStreamArgs();
+		if (dataStreamArgs.isEmpty()) {
+			return "";
+		}
+		List<String> parts = new ArrayList<>();
+		for (String value : dataStreamArgs.values()) {
+			try {
+				if (Integer.parseInt(value) >= 0) {
+					parts.add("p" + value);
+				}
+			} catch (NumberFormatException ignored) {
+				// dont handle non-int args for now
+			}
+		}
+		return parts.isEmpty() ? "" : String.join("_", parts);
+	}
+
+	private static int resolveDefaultParallelism(Path flinkDist) {
+		Path confDir = flinkDist.resolve("conf");
+		try {
+			Configuration configuration = GlobalConfiguration.loadConfiguration(confDir.toString());
+			return configuration.get(CoreOptions.DEFAULT_PARALLELISM);
+		} catch (Exception e) {
+			LOG.warn("cant resolve default parallelism from {}", confDir, e);
+			return -1;
+		}
 	}
 
 	private static Path locateNexmarkJar(Path location) {
@@ -264,11 +299,17 @@ public class QueryRunner {
 		return result;
 	}
 
-	public void submitSQLJob(List<String> sqlLines) throws IOException {
+	public void submitSQLJob(List<String> sqlLines, boolean warmup) throws IOException {
 		Path flinkBin = flinkDist.resolve("bin");
 		final List<String> commands = new ArrayList<>();
 		commands.add(flinkBin.resolve("sql-client.sh").toAbsolutePath().toString());
 		commands.add("embedded");
+
+		List<String> statements = new ArrayList<>();
+		String jobName = buildSqlJobName(warmup);
+		String escapedJobName = jobName.replace("'", "''");
+		statements.add("SET 'pipeline.name' = '" + escapedJobName + "';");
+		statements.addAll(sqlLines);
 
 		LOG.info("\n================================================================================"
 				+ "\nQuery {} is running."
@@ -278,9 +319,20 @@ public class QueryRunner {
 
 		AutoClosableProcess
 			.create(commands.toArray(new String[0]))
-			.setStdInputs(sqlLines.toArray(new String[0]))
+			.setStdInputs(statements.toArray(new String[0]))
 			.setStdoutProcessor(LOG::info) // logging the SQL statements and error message
 			.runBlocking();
+	}
+
+	private String buildSqlJobName(boolean warmup) {
+		StringBuilder nameBuilder = new StringBuilder(queryName);
+		if (defaultParallelism > 0) {
+			nameBuilder.append(" p").append(defaultParallelism);
+		}
+		if (warmup) {
+			nameBuilder.append(" warmup");
+		}
+		return nameBuilder.toString();
 	}
 
 }
