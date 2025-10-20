@@ -18,10 +18,10 @@ public class CustomRocksDBOptionsFactory implements RocksDBOptionsFactory {
     private static final double HIGH_PRIORITY_POOL_RATIO = 0.1;
 
     // Size of the data block cache (in bytes)
-    private static final long BLOCK_CACHE_SIZE = 64L * 1024 * 1024;
+    private static final long BLOCK_CACHE_SIZE = 130L * 1024 * 1024;
 
     // Number of bits to shard the block cache
-    private static final int BLOCK_CACHE_SHARD_BITS = 2;
+    private static final int BLOCK_CACHE_SHARD_BITS = 3;
 
     // Per-Column-Family write-buffer size (memtable) in bytes
     private static final long WRITE_BUFFER_SIZE = 64L * 1024 * 1024;
@@ -93,10 +93,7 @@ public class CustomRocksDBOptionsFactory implements RocksDBOptionsFactory {
             .setUseDirectIoForFlushAndCompaction(false)
 
             // RocksDB background threads
-            // .setMaxBackgroundFlushes(MAX_BACKGROUND_FLUSHES)
-            // .setMaxBackgroundCompactions(MAX_BACKGROUND_COMPACTIONS)
             .setMaxBackgroundJobs(MAX_BACKGROUND_JOBS)
-
             .setMaxSubcompactions(MAX_SUBCOMPACTIONS)
 
             // Attach statistics for Prometheus
@@ -145,17 +142,16 @@ public class CustomRocksDBOptionsFactory implements RocksDBOptionsFactory {
             .orElseThrow(() -> new IllegalStateException("Block cache not found in handlesToClose"));
 
         BlockBasedTableConfig tableConfig = new BlockBasedTableConfig()
-            .setCacheIndexAndFilterBlocks(false)
-            .setCacheIndexAndFilterBlocksWithHighPriority(false)
-            .setPinL0FilterAndIndexBlocksInCache(false)
-            .setPinTopLevelIndexAndFilter(false)
+            .setCacheIndexAndFilterBlocks(true)
+            .setCacheIndexAndFilterBlocksWithHighPriority(true)
+            .setPinL0FilterAndIndexBlocksInCache(true)
+            .setPinTopLevelIndexAndFilter(true)
             .setBlockCache(blockCache);
 
         return currentOptions
             // Write Path Config
             .setWriteBufferSize(WRITE_BUFFER_SIZE)
             .setMaxWriteBufferNumber(MAX_WRITE_BUFFER_NUMBER)
-            .setMinWriteBufferNumberToMerge(1)
             .setTargetFileSizeBase(TARGET_FILE_SIZE_BASE)
 
             // Compaction Trigger
