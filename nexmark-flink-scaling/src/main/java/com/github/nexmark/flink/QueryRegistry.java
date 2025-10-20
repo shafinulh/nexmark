@@ -43,6 +43,11 @@ public final class QueryRegistry {
 			new DataStreamQueryDescriptor(
 				"com.github.nexmark.flink.datastream.Query3DataStreamJob",
 				"q3 datastream"));
+		descriptors.put(
+			"q11_datastream",
+			new DataStreamQueryDescriptor(
+				"com.github.nexmark.flink.datastream.Query11DataStreamJob",
+				"q11 datastream"));
 		return Collections.unmodifiableMap(descriptors);
 	}
 
