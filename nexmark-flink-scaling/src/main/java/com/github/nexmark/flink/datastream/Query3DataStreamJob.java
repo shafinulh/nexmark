@@ -4,7 +4,6 @@ import com.github.nexmark.flink.NexmarkConfiguration;
 import com.github.nexmark.flink.source.NexmarkSource;
 import com.github.nexmark.flink.source.NexmarkSourceFactory;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -14,13 +13,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple4;
-// import org.apache.flink.api.java.utils.ParameterTool;
-// import org.apache.flink.client.cli.ParameterTool;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
-import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
@@ -46,20 +45,25 @@ public class Query3DataStreamJob {
 	private static final String DEFAULT_JOB_NAME = "Nexmark Query3 DataStream";
 
 	public static void main(String[] args) throws Exception {
-		Map<String, String> params = parseArgs(args);
+		final ParameterTool params = ParameterTool.fromArgs(args);
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		// env.disableOperatorChaining();
+		env.getConfig().setGlobalJobParameters(params);
 
-		int sourceParallelism = params.containsKey("source-parallelism")
-			? Integer.parseInt(params.get("source-parallelism"))
-			: DEFAULT_SOURCE_PARALLELISM;
-		int filterParallelism = params.containsKey("filter-parallelism")
-			? Integer.parseInt(params.get("filter-parallelism"))
-			: sourceParallelism;
-		int joinParallelism = params.containsKey("join-parallelism")
-			? Integer.parseInt(params.get("join-parallelism"))
-			: DEFAULT_JOIN_PARALLELISM;
+		if (params.getBoolean("disableOperatorChaining", false)) {
+			env.disableOperatorChaining();
+		}
+
+		if (params.has("parallelism")) {
+			env.setParallelism(params.getInt("parallelism"));
+		}
+
+		int sourceParallelism = params.getInt("p-source",
+			params.getInt("source-parallelism", DEFAULT_SOURCE_PARALLELISM));
+		int filterParallelism = params.getInt("p-filter",
+			params.getInt("filter-parallelism", sourceParallelism));
+		int joinParallelism = params.getInt("p-join",
+			params.getInt("join-parallelism", DEFAULT_JOIN_PARALLELISM));
 
 		NexmarkConfiguration configuration = configurationFromParameters(params, sourceParallelism);
 		NexmarkSource nexmarkSource = NexmarkSourceFactory.forDataStream(configuration);
@@ -113,50 +117,34 @@ public class Query3DataStreamJob {
 			.slotSharingGroup("join");
 
 		joined
-			.sinkTo(new DiscardingSink<>())
+			.addSink(new DiscardingSink<>())
+			.name("Discard sink")
 			.setParallelism(joinParallelism)
 			.slotSharingGroup("join");
 
-		String jobName = params.getOrDefault("job-name", DEFAULT_JOB_NAME);
+		String jobName = params.get("job-name");
+		if (jobName == null) {
+			jobName = DEFAULT_JOB_NAME;
+		}
 		env.execute(jobName);
 	}
 
-	private static Map<String, String> parseArgs(String[] args) {
-		Map<String, String> parsed = new HashMap<>();
-		for (int i = 0; i < args.length - 1; i += 2) {
-			String key = args[i];
-			String value = args[i + 1];
-			if (key.startsWith("--")) {
-				parsed.put(key.substring(2), value);
-			}
-		}
-		return parsed;
-	}
-
-	private static NexmarkConfiguration configurationFromParameters(Map<String, String> params, int sourceParallelism) {
+	private static NexmarkConfiguration configurationFromParameters(ParameterTool params, int sourceParallelism) {
 		NexmarkConfiguration configuration = defaultConfiguration(sourceParallelism);
 
-		long events = params.containsKey("events")
-			? Long.parseLong(params.get("events"))
-			: configuration.numEvents;
-		configuration.numEvents = events;
+		configuration.numEvents = params.getLong("events", configuration.numEvents);
 
-		long tps = params.containsKey("tps")
-			? Long.parseLong(params.get("tps"))
-			: configuration.nextEventRate;
+		long tps = params.getLong("tps", configuration.nextEventRate);
 		int rate = (int) tps;
 		configuration.firstEventRate = rate;
 		configuration.nextEventRate = rate;
 
-		configuration.personProportion = params.containsKey("person-proportion")
-			? Integer.parseInt(params.get("person-proportion"))
-			: configuration.personProportion;
-		configuration.auctionProportion = params.containsKey("auction-proportion")
-			? Integer.parseInt(params.get("auction-proportion"))
-			: configuration.auctionProportion;
-		configuration.bidProportion = params.containsKey("bid-proportion")
-			? Integer.parseInt(params.get("bid-proportion"))
-			: configuration.bidProportion;
+		configuration.personProportion =
+			params.getInt("person-proportion", configuration.personProportion);
+		configuration.auctionProportion =
+			params.getInt("auction-proportion", configuration.auctionProportion);
+		configuration.bidProportion =
+			params.getInt("bid-proportion", configuration.bidProportion);
 
 		return configuration;
 	}
@@ -225,7 +213,7 @@ public class Query3DataStreamJob {
 		private transient ListState<Long> pendingAuctionIds;
 
 		@Override
-		public void open(OpenContext openContext) throws Exception {
+		public void open(Configuration parameters) throws Exception {
 			ValueStateDescriptor<SimplePerson> personDescriptor =
 				new ValueStateDescriptor<>("person-state", TypeInformation.of(SimplePerson.class));
 			personState = getRuntimeContext().getState(personDescriptor);

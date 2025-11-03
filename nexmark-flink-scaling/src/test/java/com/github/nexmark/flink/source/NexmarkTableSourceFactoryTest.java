@@ -121,13 +121,12 @@ public class NexmarkTableSourceFactoryTest {
 			null,
 			ObjectIdentifier.of("default", "default", "t1"),
 			new ResolvedCatalogTable(
-					CatalogTable.newBuilder()
-							.schema(NEXMARK_SCHEMA)
-							.comment("mock source")
-							.partitionKeys(new ArrayList<>())
-							.options(options)
-							.build(),
-					RESOLVED_SCHEMA),
+				CatalogTable.of(
+					NEXMARK_SCHEMA,
+					"mock source",
+					new ArrayList<>(),
+					options),
+				RESOLVED_SCHEMA),
 			Collections.emptyMap(),
 			new Configuration(),
 			NexmarkTableSourceFactoryTest.class.getClassLoader(),
