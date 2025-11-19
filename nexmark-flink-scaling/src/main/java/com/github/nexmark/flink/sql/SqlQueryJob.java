@@ -61,6 +61,9 @@ public final class SqlQueryJob {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		options.getParallelism().ifPresent(env::setParallelism);
+		if (options.isOperatorChainingDisabled()) {
+			env.disableOperatorChaining();
+		}
 
 		TableEnvironment tableEnv = StreamTableEnvironment.create(env);
 		options.getJobName()
@@ -150,6 +153,7 @@ public final class SqlQueryJob {
 		private final Optional<String> bootstrapServers;
 		private final String nexmarkDir;
 		private final String flinkHome;
+		private final boolean disableOperatorChaining;
 
 		private SqlJobOptions(
 				String query,
@@ -163,7 +167,8 @@ public final class SqlQueryJob {
 				int bidProportion,
 				Optional<String> bootstrapServers,
 				String nexmarkDir,
-				String flinkHome) {
+				String flinkHome,
+				boolean disableOperatorChaining) {
 			this.query = query;
 			this.category = category;
 			this.jobName = jobName;
@@ -176,6 +181,7 @@ public final class SqlQueryJob {
 			this.bootstrapServers = bootstrapServers;
 			this.nexmarkDir = nexmarkDir;
 			this.flinkHome = flinkHome;
+			this.disableOperatorChaining = disableOperatorChaining;
 		}
 
 		static SqlJobOptions fromArgs(String[] args) {
@@ -192,6 +198,7 @@ public final class SqlQueryJob {
 			Optional<String> bootstrapServers = firstPresent(params, "bootstrap-servers", "kafka-bootstrap-servers");
 			String nexmarkDir = params.get("nexmark-dir", System.getProperty("user.dir"));
 			String flinkHome = params.get("flink-home", System.getenv().getOrDefault("FLINK_HOME", ""));
+			boolean disableOperatorChaining = params.getBoolean("disableOperatorChaining", false);
 
 			return new SqlJobOptions(
 					query,
@@ -205,7 +212,8 @@ public final class SqlQueryJob {
 					bidProportion,
 					bootstrapServers,
 					nexmarkDir,
-					flinkHome);
+					flinkHome,
+					disableOperatorChaining);
 		}
 
 		Optional<String> getJobName() {
@@ -214,6 +222,10 @@ public final class SqlQueryJob {
 
 		Optional<Integer> getParallelism() {
 			return parallelism;
+		}
+
+		boolean isOperatorChainingDisabled() {
+			return disableOperatorChaining;
 		}
 
 		Map<String, String> buildTemplateVariables() {
