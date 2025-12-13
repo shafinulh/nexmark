@@ -1,5 +1,6 @@
 CREATE TABLE datagen (
     event_type int,
+    event_id BIGINT,
     person ROW<
         id  BIGINT,
         name  VARCHAR,
@@ -21,6 +22,7 @@ CREATE TABLE datagen (
         category  BIGINT,
         extra  VARCHAR>,
     bid ROW<
+        id  BIGINT,
         auction  BIGINT,
         bidder  BIGINT,
         price  BIGINT,
@@ -34,7 +36,8 @@ CREATE TABLE datagen (
             WHEN event_type = 1 THEN auction.`dateTime`
             ELSE bid.`dateTime`
         END,
-    WATERMARK FOR `dateTime` AS `dateTime` - INTERVAL '4' SECOND
+    WATERMARK FOR `dateTime` AS `dateTime` - INTERVAL '4' SECOND,
+    PRIMARY KEY (event_id) NOT ENFORCED
 ) WITH (
     'connector' = 'nexmark',
     'first-event.rate' = '${TPS}',

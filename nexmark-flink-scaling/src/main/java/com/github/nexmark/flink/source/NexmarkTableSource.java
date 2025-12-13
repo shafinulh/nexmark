@@ -46,6 +46,7 @@ public class NexmarkTableSource implements ScanTableSource {
 
 	public static final Schema NEXMARK_SCHEMA = Schema.newBuilder()
 		.column("event_type", INT())
+		.column("event_id", BIGINT())
 		.column("person", ROW(
 			FIELD("id", BIGINT()),
 			FIELD("name", STRING()),
@@ -67,6 +68,7 @@ public class NexmarkTableSource implements ScanTableSource {
 			FIELD("category", BIGINT()),
 			FIELD("extra", STRING())))
 		.column("bid", ROW(
+			FIELD("id", BIGINT()),
 			FIELD("auction", BIGINT()),
 			FIELD("bidder", BIGINT()),
 			FIELD("price", BIGINT()),

@@ -32,6 +32,7 @@ public class Event {
 	public @Nullable Auction newAuction;
 	public @Nullable Bid bid;
 	public Type type;
+	private long eventId;
 
 	/** The type of object stored in this event. * */
 	public enum Type {
@@ -51,6 +52,7 @@ public class Event {
 		newAuction = null;
 		bid = null;
 		type = Type.PERSON;
+		eventId = -1L;
 	}
 
 	public Event(Auction newAuction) {
@@ -58,6 +60,7 @@ public class Event {
 		this.newAuction = newAuction;
 		bid = null;
 		type = Type.AUCTION;
+		eventId = -1L;
 	}
 
 	public Event(Bid bid) {
@@ -65,6 +68,15 @@ public class Event {
 		newAuction = null;
 		this.bid = bid;
 		type = Type.BID;
+		eventId = -1L;
+	}
+
+	public long getEventId() {
+		return eventId;
+	}
+
+	public void setEventId(long eventId) {
+		this.eventId = eventId;
 	}
 
 	@Override

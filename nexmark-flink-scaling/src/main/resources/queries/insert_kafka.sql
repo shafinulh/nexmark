@@ -3,4 +3,4 @@
 -- -------------------------------------------------------------------------------------------------
 
 INSERT INTO kafka
-SELECT event_type, person, auction, bid FROM datagen;
+SELECT event_type, event_id, person, auction, bid FROM datagen;

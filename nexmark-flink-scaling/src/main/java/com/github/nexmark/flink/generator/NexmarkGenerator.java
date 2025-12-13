@@ -24,6 +24,7 @@ import com.github.nexmark.flink.model.Event;
 import com.github.nexmark.flink.generator.model.BidGenerator;
 
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.SplittableRandom;
@@ -99,6 +100,8 @@ public class NexmarkGenerator implements Iterator<NexmarkGenerator.NextEvent>, S
     }
   }
 
+  private static final long DUPLICATE_BID_DELAY_MS = 5L;
+
   private final SplittableRandom random = new SplittableRandom();
 
   /**
@@ -112,6 +115,9 @@ public class NexmarkGenerator implements Iterator<NexmarkGenerator.NextEvent>, S
 
   /** Wallclock time at which we emitted the first event (ms since epoch). Initially -1. */
   private long wallclockBaseTime;
+
+  private boolean emitBidDuplicateNext;
+  private Bid pendingDuplicateBid;
 
   public NexmarkGenerator(GeneratorConfig config, long eventsCountSoFar, long wallclockBaseTime) {
     checkNotNull(config);
@@ -189,10 +195,14 @@ public class NexmarkGenerator implements Iterator<NexmarkGenerator.NextEvent>, S
     long wallclockTimestamp = wallclockBaseTime + (eventTimestamp - getCurrentConfig().baseTime);
 
     long newEventId = getNextEventId();
-    long rem = newEventId % config.totalProportion;
+   long rem = newEventId % config.totalProportion;
 
     Event event;
-    if (rem < config.personProportion) {
+    if (emitBidDuplicateNext) {
+      pendingDuplicateBid.bidId = newEventId;
+      event = new Event(pendingDuplicateBid);
+      emitBidDuplicateNext = false;
+    } else if (rem < config.personProportion) {
       event =
           new Event(PersonGenerator.nextPerson(newEventId, random, adjustedEventTimestamp, config));
     } else if (rem < config.personProportion + config.auctionProportion) {
@@ -200,9 +210,13 @@ public class NexmarkGenerator implements Iterator<NexmarkGenerator.NextEvent>, S
           new Event(
               AuctionGenerator.nextAuction(eventsCountSoFar, newEventId, random, adjustedEventTimestamp, config));
     } else {
-      event = new Event(BidGenerator.nextBid(newEventId, random, adjustedEventTimestamp, config));
+      Bid bid = BidGenerator.nextBid(newEventId, random, adjustedEventTimestamp, config);
+      bid.bidId = newEventId;
+      event = new Event(bid);
+      scheduleBidDuplicate(bid);
     }
 
+    event.setEventId(newEventId);
     eventsCountSoFar++;
     return new NextEvent(wallclockTimestamp, adjustedEventTimestamp, event, watermark);
   }
@@ -215,6 +229,23 @@ public class NexmarkGenerator implements Iterator<NexmarkGenerator.NextEvent>, S
   @Override
   public void remove() {
     throw new UnsupportedOperationException();
+  }
+
+  private void scheduleBidDuplicate(Bid originalBid) {
+    long bidderOffset = Math.max(1, random.nextInt(5));
+    long duplicateBidder = originalBid.bidder + bidderOffset;
+    Instant duplicateTime = originalBid.dateTime.plusMillis(DUPLICATE_BID_DELAY_MS);
+    Bid duplicate =
+        new Bid(
+            originalBid.auction,
+            duplicateBidder,
+            originalBid.price,
+            originalBid.channel,
+            originalBid.url,
+            duplicateTime,
+            originalBid.extra);
+    emitBidDuplicateNext = true;
+    pendingDuplicateBid = duplicate;
   }
 
   /** Return an estimate of fraction of output consumed. */

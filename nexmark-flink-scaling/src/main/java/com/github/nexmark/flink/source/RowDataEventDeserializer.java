@@ -36,17 +36,18 @@ public class RowDataEventDeserializer implements EventDeserializer<RowData> {
 	}
 
 	private RowData convertEvent(Event event) {
-		GenericRowData rowData = new GenericRowData(4);
+		GenericRowData rowData = new GenericRowData(5);
 		rowData.setField(0, event.type.value);
+		rowData.setField(1, event.getEventId());
 		if (event.type == Event.Type.PERSON) {
 			assert event.newPerson != null;
-			rowData.setField(1, convertPerson(event.newPerson));
+			rowData.setField(2, convertPerson(event.newPerson));
 		} else if (event.type == Event.Type.AUCTION) {
 			assert event.newAuction != null;
-			rowData.setField(2, convertAuction(event.newAuction));
+			rowData.setField(3, convertAuction(event.newAuction));
 		} else if (event.type == Event.Type.BID) {
 			assert event.bid != null;
-			rowData.setField(3, convertBid(event.bid));
+			rowData.setField(4, convertBid(event.bid));
 		} else {
 			throw new UnsupportedOperationException("Unsupported event type: " + event.type.name());
 		}
@@ -82,14 +83,15 @@ public class RowDataEventDeserializer implements EventDeserializer<RowData> {
 	}
 
 	private RowData convertBid(Bid bid) {
-		GenericRowData rowData = new GenericRowData(7);
-		rowData.setField(0, bid.auction);
-		rowData.setField(1, bid.bidder);
-		rowData.setField(2, bid.price);
-		rowData.setField(3, StringData.fromString(bid.channel));
-		rowData.setField(4, StringData.fromString(bid.url));
-		rowData.setField(5, TimestampData.fromInstant(bid.dateTime));
-		rowData.setField(6, StringData.fromString(bid.extra));
+		GenericRowData rowData = new GenericRowData(8);
+		rowData.setField(0, bid.bidId);
+		rowData.setField(1, bid.auction);
+		rowData.setField(2, bid.bidder);
+		rowData.setField(3, bid.price);
+		rowData.setField(4, StringData.fromString(bid.channel));
+		rowData.setField(5, StringData.fromString(bid.url));
+		rowData.setField(6, TimestampData.fromInstant(bid.dateTime));
+		rowData.setField(7, StringData.fromString(bid.extra));
 		return rowData;
 	}
 
