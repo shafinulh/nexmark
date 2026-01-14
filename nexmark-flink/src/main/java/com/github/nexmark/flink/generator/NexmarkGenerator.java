@@ -186,9 +186,12 @@ public class NexmarkGenerator implements Iterator<NexmarkGenerator.NextEvent>, S
           new Event(
               AuctionGenerator.nextAuction(eventsCountSoFar, newEventId, random, adjustedEventTimestamp, config));
     } else {
-      event = new Event(BidGenerator.nextBid(newEventId, random, adjustedEventTimestamp, config));
+      Bid bid = BidGenerator.nextBid(newEventId, random, adjustedEventTimestamp, config);
+      bid.bidId = newEventId;
+      event = new Event(bid);
     }
 
+    event.setEventId(newEventId);
     eventsCountSoFar++;
     return new NextEvent(wallclockTimestamp, adjustedEventTimestamp, event, watermark);
   }

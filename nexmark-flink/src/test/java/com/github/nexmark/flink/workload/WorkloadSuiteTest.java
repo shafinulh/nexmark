@@ -110,7 +110,7 @@ public class WorkloadSuiteTest {
 		assert confDir != null;
 		Configuration conf = NexmarkGlobalConfiguration.loadConfiguration(confDir.getPath());
 
-		Workload load = new Workload(10000000, 100000000, 1, 3, 46);
+		Workload load = new Workload(50000, 200000000, 1, 3, 46);
 
 		Map<String, Workload> query2Workload = new HashMap<>();
 		query2Workload.put("q0", load);
@@ -120,8 +120,10 @@ public class WorkloadSuiteTest {
 		query2Workload.put("q4", load);
 		query2Workload.put("q5", load);
 		query2Workload.put("q7", load);
+		query2Workload.put("q7_unique", load);
 		query2Workload.put("q8", load);
 		query2Workload.put("q9", load);
+		query2Workload.put("q9_unique", load);
 		query2Workload.put("q10", load);
 		query2Workload.put("q11", load);
 		query2Workload.put("q12", load);
@@ -133,6 +135,7 @@ public class WorkloadSuiteTest {
 		query2Workload.put("q18", load);
 		query2Workload.put("q19", load);
 		query2Workload.put("q20", load);
+		query2Workload.put("q20_unique", load);
 		query2Workload.put("q21", load);
 		query2Workload.put("q22", load);
 		query2Workload.put("insert_kafka", new Workload(10000000, 0, 1, 3, 46));

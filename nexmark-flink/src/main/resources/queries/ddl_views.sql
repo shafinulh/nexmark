@@ -12,6 +12,7 @@ FROM ${NEXMARK_TABLE} WHERE event_type = 0;
 
 CREATE VIEW auction AS
 SELECT
+    event_id AS auction_event_id,
     auction.id,
     auction.itemName,
     auction.description,
@@ -26,6 +27,7 @@ FROM ${NEXMARK_TABLE} WHERE event_type = 1;
 
 CREATE VIEW bid AS
 SELECT
+    event_id AS bid_id,
     bid.auction,
     bid.bidder,
     bid.price,
