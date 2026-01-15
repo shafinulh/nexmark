@@ -114,7 +114,7 @@ public class QueryRunnerV2 {
 		long start = System.currentTimeMillis();
 		while (flinkRestClient.isJobRunning(jobId, recordLimit)) {
 			try {
-				Thread.sleep(100L);
+				Thread.sleep(1000L);
 			} catch (InterruptedException e) {
 				throw new RuntimeException(e);
 			}
@@ -123,22 +123,24 @@ public class QueryRunnerV2 {
 	}
 
 	private Tuple2<Savepoint, Long> cancelJob(String jobId, boolean savepoint) {
-		System.out.println("Cancelling job " + jobId + " with checkpoint = " + savepoint);
+		System.out.println("Stopping job " + jobId + " with savepoint = " + savepoint);
 		long start = System.currentTimeMillis();
 		boolean triggered = false;
+		boolean savepointCompleted = false;
+		String savepointPath = null;
 		String requestId = null;
 
 		while (!flinkRestClient.isJobCanceledOrFinished(jobId)) {
 			// make sure the job is canceled.
 			if (savepoint) {
 				if (!triggered) {
-					requestId = flinkRestClient.triggerCheckpoint(jobId);
+					requestId = flinkRestClient.stopWithSavepoint(jobId);
 					triggered = true;
-				} else {
-					Savepoint.Status status = flinkRestClient.checkCheckpointFinished(jobId, requestId);
+				} else if (!savepointCompleted) {
+					Savepoint.Status status = flinkRestClient.checkSavepointFinished(jobId, requestId);
 					if (status == Savepoint.Status.COMPLETED) {
-						// just wait for finished.
-						flinkRestClient.cancelJob(jobId);
+						savepointCompleted = true;
+						savepointPath = flinkRestClient.getSavepointLocation(jobId, requestId);
 					} else if (status == Savepoint.Status.FAILED) {
 						triggered = false;
 					}
@@ -152,10 +154,32 @@ public class QueryRunnerV2 {
 				throw new RuntimeException(e);
 			}
 		}
-		return Tuple2.of(
-				savepoint ? flinkRestClient.getJobLastCheckpoint(jobId) : null,
-				System.currentTimeMillis() - start
-		);
+		if (savepoint && savepointPath == null && requestId != null) {
+			long deadline = System.currentTimeMillis() + 60000L;
+			while (System.currentTimeMillis() < deadline && savepointPath == null) {
+				Savepoint.Status status = flinkRestClient.checkSavepointFinished(jobId, requestId);
+				if (status == Savepoint.Status.COMPLETED) {
+					savepointPath = flinkRestClient.getSavepointLocation(jobId, requestId);
+					break;
+				} else if (status == Savepoint.Status.FAILED) {
+					break;
+				}
+				try {
+					Thread.sleep(1000L);
+				} catch (InterruptedException e) {
+					throw new RuntimeException(e);
+				}
+			}
+		}
+		Savepoint result = null;
+		if (savepoint) {
+			if (savepointPath != null && !savepointPath.isEmpty()) {
+				result = new Savepoint(Savepoint.Status.COMPLETED, savepointPath);
+			} else {
+				result = flinkRestClient.getJobLastCheckpoint(jobId);
+			}
+		}
+		return Tuple2.of(result, System.currentTimeMillis() - start);
 	}
 
 	private String runWarmup(long stopAtEvents, long totalEvents) throws IOException {
@@ -196,7 +220,7 @@ public class QueryRunnerV2 {
 		List<String> allLines = new ArrayList<>();
 		if (savepoint != null) {
 			allLines.add("SET 'execution.savepoint.path' = '" + savepoint.getPath() + "';");
-			allLines.add("SET 'execution.state-recovery.claim-mode' = 'CLAIM';");
+			allLines.add("SET 'execution.state-recovery.claim-mode' = 'NO_CLAIM';");
 		}
 		if (name != null && !name.isEmpty()) {
 			allLines.add("SET 'pipeline.name' = '" + name + "';");

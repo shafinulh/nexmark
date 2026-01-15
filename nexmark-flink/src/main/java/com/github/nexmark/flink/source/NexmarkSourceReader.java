@@ -37,6 +37,7 @@ public class NexmarkSourceReader implements SourceReader<RowData, NexmarkSource.
     private final SourceReaderContext context;
     private final EventDeserializer<RowData> deserializer;
     private final Counter numRecordsInCounter;
+    private final Counter numGeneratedCounter;
     private final boolean isKeepAlive;
     private final GeneratorConfig config;
     private NexmarkSource.NexmarkSourceSplit sourceSplit;
@@ -50,6 +51,7 @@ public class NexmarkSourceReader implements SourceReader<RowData, NexmarkSource.
         this.config = config;
         this.deserializer = deserializer;
         this.numRecordsInCounter = context.metricGroup().getIOMetricGroup().getNumRecordsInCounter();
+        this.numGeneratedCounter = context.metricGroup().counter("nexmark_generated_records");
     }
 
     @Override
@@ -74,6 +76,7 @@ public class NexmarkSourceReader implements SourceReader<RowData, NexmarkSource.
         }
         readerOutput.collect(deserializer.deserialize(nextEvent.event));
         numRecordsInCounter.inc();
+        numGeneratedCounter.inc();
         return InputStatus.MORE_AVAILABLE;
     }
 
