@@ -42,7 +42,7 @@ nexmark.workload.suite.sp1m.events.num: 5000000
 nexmark.workload.suite.sp1m.tps: 50000
 nexmark.workload.suite.sp1m.queries: "q20,q20_unique,q9,q9_unique"
 # nexmark.workload.suite.sp1m.warmup.duration: 0s
-nexmark.workload.suite.sp1m.warmup.events.num: 15000000
+nexmark.workload.suite.sp1m.warmup.events.num: 17500000
 # nexmark.workload.suite.sp1m.warmup.tps: 50000
 
 # Runner version

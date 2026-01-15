@@ -64,6 +64,8 @@ public class Benchmark {
 		"Query to run. If the value is 'all', all queries will be run.");
 	private static final Option CATEGORY = new Option("c", "category", true,
 			"Query category.");
+	private static final Option SAVEPOINT = new Option("s", "savepoint", true,
+			"Savepoint path to restore from (v3).");
 
 	public static final String CATEGORY_OA = "oa";
 
@@ -79,11 +81,12 @@ public class Benchmark {
 		boolean isQueryOa = CATEGORY_OA.equals(category);
 		Path queryLocation = isQueryOa ? location.resolve("queries") : location.resolve("queries-" + category);
 		List<String> queries = getQueries(queryLocation, line.getOptionValue(QUERIES.getOpt()), isQueryOa);
+		String savepointPath = line.getOptionValue(SAVEPOINT.getOpt());
 		System.out.println("Benchmark Queries: " + queries);
-		runQueries(queries, location, category);
+		runQueries(queries, location, category, savepointPath);
 	}
 
-	private static void runQueries(List<String> queries, Path location, String category) {
+	private static void runQueries(List<String> queries, Path location, String category, String savepointPath) {
 		String flinkHome = System.getenv("FLINK_HOME");
 		if (flinkHome == null) {
 			throw new IllegalArgumentException("FLINK_HOME environment variable is not set.");
@@ -101,6 +104,9 @@ public class Benchmark {
 		cpuMetricReceiver.runServer();
 
 		String runnerVersion = nexmarkConf.get(FlinkNexmarkOptions.RUNNER_VERSION);
+		boolean hasSavepoint = savepointPath != null && !savepointPath.isEmpty();
+		boolean isRunnerV2 = runnerVersion.equalsIgnoreCase("V2");
+		boolean isRunnerV3 = runnerVersion.equalsIgnoreCase("V3");
 
 		Duration monitorDelay = nexmarkConf.get(FlinkNexmarkOptions.METRIC_MONITOR_DELAY);
 		Duration monitorInterval = nexmarkConf.get(FlinkNexmarkOptions.METRIC_MONITOR_INTERVAL);
@@ -111,7 +117,25 @@ public class Benchmark {
 		// start to run queries
 		LinkedHashMap<String, JobBenchmarkMetric> totalMetrics = new LinkedHashMap<>();
 
-		if (runnerVersion.equalsIgnoreCase("V2")) {
+		boolean useV2Summary = false;
+		if (hasSavepoint) {
+			executeQueriesV3(
+					queries,
+					workloadSuite,
+					flinkRestClient,
+					cpuMetricReceiver,
+					monitorDelay,
+					monitorInterval,
+					monitorDuration,
+					location,
+					flinkDist,
+					totalMetrics,
+					category,
+					savepointPath);
+			useV2Summary = true;
+		} else if (isRunnerV3) {
+			throw new IllegalArgumentException("QueryRunnerV3 requires --savepoint.");
+		} else if (isRunnerV2) {
 			executeQueriesV2(
 					queries,
 					workloadSuite,
@@ -124,6 +148,7 @@ public class Benchmark {
 					flinkDist,
 					totalMetrics,
 					category);
+			useV2Summary = true;
 		} else {
 			executeQueries(
 					queries,
@@ -140,7 +165,7 @@ public class Benchmark {
 		}
 
 		// print benchmark summary
-		if (runnerVersion.equalsIgnoreCase("V2")) {
+		if (useV2Summary) {
 			printSummaryV2(totalMetrics);
 		} else {
 			printSummary(totalMetrics);
@@ -264,6 +289,49 @@ public class Benchmark {
 							reporter,
 							flinkRestClient,
 							category);
+			JobBenchmarkMetric metric = runner.run();
+			totalMetrics.put(queryName, metric);
+		}
+	}
+
+	private static void executeQueriesV3(
+			List<String> queries,
+			WorkloadSuite workloadSuite,
+			FlinkRestClient flinkRestClient,
+			CpuMetricReceiver cpuMetricReceiver,
+			Duration monitorDelay,
+			Duration monitorInterval,
+			Duration monitorDuration,
+			Path location,
+			Path flinkDist,
+			LinkedHashMap<String, JobBenchmarkMetric> totalMetrics,
+			String category,
+			String savepointPath) {
+		for (String queryName : queries) {
+			Workload workload = workloadSuite.getQueryWorkload(queryName);
+			if (workload == null) {
+				throw new IllegalArgumentException(
+						String.format("The workload of query %s is not defined.", queryName));
+			}
+			workload.validateWorkload(monitorDuration);
+
+			MetricReporter reporter =
+					new MetricReporter(
+							flinkRestClient,
+							cpuMetricReceiver,
+							monitorDelay,
+							monitorInterval,
+							monitorDuration);
+			QueryRunnerV3 runner =
+					new QueryRunnerV3(
+							queryName,
+							workload,
+							location,
+							flinkDist,
+							reporter,
+							flinkRestClient,
+							category,
+							savepointPath);
 			JobBenchmarkMetric metric = runner.run();
 			totalMetrics.put(queryName, metric);
 		}
@@ -424,6 +492,7 @@ public class Benchmark {
 		options.addOption(QUERIES);
 		options.addOption(CATEGORY);
 		options.addOption(LOCATION);
+		options.addOption(SAVEPOINT);
 		return options;
 	}
 }

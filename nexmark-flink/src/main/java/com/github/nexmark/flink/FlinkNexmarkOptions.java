@@ -33,7 +33,7 @@ public class FlinkNexmarkOptions {
 			.key("nexmark.runner.version")
 			.stringType()
 			.defaultValue("v1")
-			.withDescription("The version of the runner, v1 or v2.");
+			.withDescription("The version of the runner, v1, v2, or v3.");
 
 	public static final ConfigOption<Duration> METRIC_MONITOR_DELAY = ConfigOptions
 		.key("nexmark.metric.monitor.delay")
