@@ -5,6 +5,7 @@
 -- Illustrates a TOP-N query.
 -- -------------------------------------------------------------------------------------------------
 
+-- unchanged query, just expand the select to include only original fields
 CREATE TABLE nexmark_q19 (
     auction  BIGINT,
     bidder  BIGINT,
@@ -19,6 +20,9 @@ CREATE TABLE nexmark_q19 (
 );
 
 INSERT INTO nexmark_q19
-SELECT * FROM
-(SELECT *, ROW_NUMBER() OVER (PARTITION BY auction ORDER BY price DESC) AS rank_number FROM bid)
+SELECT auction, bidder, price, channel, url, `dateTime`, extra, rank_number
+FROM (
+  SELECT *, ROW_NUMBER() OVER (PARTITION BY auction ORDER BY price DESC) AS rank_number
+  FROM bid
+)
 WHERE rank_number <= 10;
