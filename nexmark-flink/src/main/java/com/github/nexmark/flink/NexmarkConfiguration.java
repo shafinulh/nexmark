@@ -189,6 +189,7 @@ public class NexmarkConfiguration implements Serializable {
 			watermarkHoldbackSec == that.watermarkHoldbackSec &&
 			numInFlightAuctions == that.numInFlightAuctions &&
 			numActivePeople == that.numActivePeople &&
+			occasionalDelayMinSec == that.occasionalDelayMinSec &&
 			occasionalDelaySec == that.occasionalDelaySec &&
 			Double.compare(that.probDelayedEvent, probDelayedEvent) == 0 &&
 			outOfOrderGroupSize == that.outOfOrderGroupSize &&
@@ -227,6 +228,7 @@ public class NexmarkConfiguration implements Serializable {
 			watermarkHoldbackSec,
 			numInFlightAuctions,
 			numActivePeople,
+			occasionalDelayMinSec,
 			occasionalDelaySec,
 			probDelayedEvent,
 			outOfOrderGroupSize,
