@@ -29,9 +29,46 @@ SELECT
     id, itemName, description, initialBid, reserve, `dateTime`, expires, seller, category, extra,
     auction, bidder, price, bid_dateTime, bid_extra
 FROM (
-   SELECT A.*, B.auction, B.bidder, B.price, B.`dateTime` AS bid_dateTime, B.extra AS bid_extra,
+   SELECT
+     A.id,
+     A.itemName,
+     A.description,
+     A.initialBid,
+     A.reserve,
+     A.`dateTime`,
+     A.expires,
+     A.seller,
+     A.category,
+     A.extra,
+     B.auction,
+     B.bidder,
+     B.price,
+     B.`dateTime` AS bid_dateTime,
+     B.extra AS bid_extra,
      ROW_NUMBER() OVER (PARTITION BY A.id ORDER BY B.price DESC, B.`dateTime` ASC) AS rownum
-   FROM auction A, bid B
+   FROM (
+     SELECT
+       id,
+       itemName,
+       description,
+       initialBid,
+       reserve,
+       `dateTime`,
+       expires,
+       seller,
+       category,
+       extra
+     FROM auction
+   ) A,
+   (
+     SELECT
+       auction,
+       bidder,
+       price,
+       `dateTime`,
+       extra
+     FROM bid
+   ) B
    WHERE A.id = B.auction AND B.`dateTime` BETWEEN A.`dateTime` AND A.expires
 )
 WHERE rownum <= 1;
