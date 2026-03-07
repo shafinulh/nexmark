@@ -39,11 +39,11 @@ nexmark.metric.reporter.port: 9098
 
 # Q20_unique, Q4_unique: 60M warmup 15M eval
 # Q9_unique, Q4, Q9, Q20, Q18, Q19, paper data collection: 28M warmup, 7M eval 
-nexmark.workload.suite.sp1m.events.num: 7000000
+nexmark.workload.suite.sp1m.events.num: 12500000
 nexmark.workload.suite.sp1m.tps: 50000
 nexmark.workload.suite.sp1m.queries: "q20,q20_unique,q9,q9_unique,q7_unique,q19,q4,q4_unique,q18,q8"
 # nexmark.workload.suite.sp1m.warmup.duration: 0s
-nexmark.workload.suite.sp1m.warmup.events.num: 28000000
+nexmark.workload.suite.sp1m.warmup.events.num: 50000000
 # nexmark.workload.suite.sp1m.warmup.tps: 50000
 
 # Runner version

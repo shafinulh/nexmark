@@ -48,5 +48,5 @@ CREATE TABLE datagen (
     'bid.proportion' = '${BID_PROPORTION}',
     'keep-alive' = '${KEEP_ALIVE}',
     'stop-at' = '${STOP_AT}',
-    'max-emit-speed' = 'true'
+    'max-emit-speed' = '${MAX_EMIT_SPEED}'
 );
