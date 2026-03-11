@@ -25,7 +25,8 @@ public class StringsGenerator {
   /** Smallest random string size. */
   private static final int MIN_STRING_LENGTH = 3;
 
-  private static final String REUSABLE_EXTRA_STRING = nextExactString(new SplittableRandom(), 1024 * 1024);
+  private static final String REUSABLE_EXTRA_STRING =
+      nextExactString(new SplittableRandom(1L), 1024 * 1024);
 
   /** Return a random string of up to {@code maxLength}. */
   public static String nextString(SplittableRandom random, int maxLength) {

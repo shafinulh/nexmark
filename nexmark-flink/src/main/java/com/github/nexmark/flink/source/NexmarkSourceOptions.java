@@ -174,6 +174,16 @@ public class NexmarkSourceOptions {
 			.booleanType()
 			.defaultValue(true);
 
+	public static final ConfigOption<String> EVENT_TYPE = ConfigOptions
+			.key("event.type")
+			.stringType()
+			.defaultValue("all");
+
+	public static final ConfigOption<Long> BASE_TIME = ConfigOptions
+			.key("base-time")
+			.longType()
+			.defaultValue(-1L);
+
 	public static NexmarkConfiguration convertToNexmarkConfiguration(ReadableConfig config) {
 		NexmarkConfiguration nexmarkConf = new NexmarkConfiguration();
 		nexmarkConf.rateShape = config.get(RATE_SHAPE);

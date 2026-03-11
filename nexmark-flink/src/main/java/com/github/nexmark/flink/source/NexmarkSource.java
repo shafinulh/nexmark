@@ -61,11 +61,13 @@ public class NexmarkSource implements Source<RowData,
     private final GeneratorConfig config;
     private final TypeInformation<RowData> outputType;
     private final RowDataEventDeserializer deserializer;
+    private final NexmarkEventType eventType;
 
-    NexmarkSource(GeneratorConfig config, TypeInformation<RowData> outputType) {
+    NexmarkSource(GeneratorConfig config, TypeInformation<RowData> outputType, NexmarkEventType eventType) {
         this.config = config;
         this.outputType = outputType;
-        this.deserializer = new RowDataEventDeserializer();
+        this.eventType = eventType;
+        this.deserializer = new RowDataEventDeserializer(eventType);
     }
 
     @Override
@@ -100,7 +102,7 @@ public class NexmarkSource implements Source<RowData,
     @Override
     public SourceReader<RowData, NexmarkSourceSplit> createReader(SourceReaderContext sourceReaderContext) {
         LOG.info("Creating Nexmark Reader");
-        return new NexmarkSourceReader(sourceReaderContext, config, deserializer);
+        return new NexmarkSourceReader(sourceReaderContext, config, deserializer, eventType);
     }
 
     @Override

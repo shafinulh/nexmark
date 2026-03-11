@@ -43,7 +43,7 @@ public class NexmarkSourceFunctionITCase {
 		TypeInformation<RowData> typeInformation =
 				(TypeInformation<RowData>) ScanRuntimeProviderContext.INSTANCE
 						.createTypeInformation(RESOLVED_SCHEMA.toPhysicalRowDataType());
-		env.fromSource(new NexmarkSource(generatorConfig, typeInformation),
+		env.fromSource(new NexmarkSource(generatorConfig, typeInformation, NexmarkEventType.ALL),
 				WatermarkStrategy.noWatermarks(),
 				"Source")
 				.print();

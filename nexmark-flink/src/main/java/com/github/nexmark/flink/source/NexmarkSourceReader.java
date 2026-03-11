@@ -39,16 +39,19 @@ public class NexmarkSourceReader implements SourceReader<RowData, NexmarkSource.
     private final Counter numRecordsInCounter;
     private final boolean isKeepAlive;
     private final GeneratorConfig config;
+    private final NexmarkEventType eventType;
     private NexmarkSource.NexmarkSourceSplit sourceSplit;
     private NexmarkGenerator generator;
 
     NexmarkSourceReader(SourceReaderContext sourceReaderContext,
                         GeneratorConfig config,
-                        EventDeserializer<RowData> deserializer) {
+                        EventDeserializer<RowData> deserializer,
+                        NexmarkEventType eventType) {
         this.context = sourceReaderContext;
         this.isKeepAlive = config.isSourceKeepAlive();
         this.config = config;
         this.deserializer = deserializer;
+        this.eventType = eventType;
         this.numRecordsInCounter = context.metricGroup().getIOMetricGroup().getNumRecordsInCounter();
     }
 
@@ -64,17 +67,20 @@ public class NexmarkSourceReader implements SourceReader<RowData, NexmarkSource.
         if (sourceSplit == null || generator == null) {
             return InputStatus.NOTHING_AVAILABLE;
         }
-        if (!generator.hasNext()) {
-            return isKeepAlive ? InputStatus.NOTHING_AVAILABLE : InputStatus.END_OF_INPUT;
+        while (generator.hasNext()) {
+            long now = System.currentTimeMillis();
+            NexmarkGenerator.NextEvent nextEvent = generator.next();
+            if (!config.maxEmitSpeed && nextEvent.wallclockTimestamp > now) {
+                Thread.sleep(nextEvent.wallclockTimestamp - now);
+            }
+            if (!eventType.matches(nextEvent.event.type)) {
+                continue;
+            }
+            readerOutput.collect(deserializer.deserialize(nextEvent.event));
+            numRecordsInCounter.inc();
+            return InputStatus.MORE_AVAILABLE;
         }
-        long now = System.currentTimeMillis();
-        NexmarkGenerator.NextEvent nextEvent = generator.next();
-        if (!config.maxEmitSpeed && nextEvent.wallclockTimestamp > now) {
-            Thread.sleep(nextEvent.wallclockTimestamp - now);
-        }
-        readerOutput.collect(deserializer.deserialize(nextEvent.event));
-        numRecordsInCounter.inc();
-        return InputStatus.MORE_AVAILABLE;
+        return isKeepAlive ? InputStatus.NOTHING_AVAILABLE : InputStatus.END_OF_INPUT;
     }
 
     @Override

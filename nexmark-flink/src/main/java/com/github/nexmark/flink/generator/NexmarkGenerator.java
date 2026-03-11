@@ -26,7 +26,6 @@ import com.github.nexmark.flink.generator.model.BidGenerator;
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.Objects;
-import java.util.SplittableRandom;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -98,8 +97,6 @@ public class NexmarkGenerator implements Iterator<NexmarkGenerator.NextEvent>, S
       return Integer.compare(event.hashCode(), other.event.hashCode());
     }
   }
-
-  private final SplittableRandom random = new SplittableRandom();
 
   /**
    * Configuration to generate events against.
@@ -176,17 +173,22 @@ public class NexmarkGenerator implements Iterator<NexmarkGenerator.NextEvent>, S
 
     long newEventId = getNextEventId();
     long rem = newEventId % config.totalProportion;
+    java.util.SplittableRandom eventRandom = new java.util.SplittableRandom(newEventId);
 
     Event event;
     if (rem < config.personProportion) {
       event =
-          new Event(PersonGenerator.nextPerson(newEventId, random, adjustedEventTimestamp, config));
+          new Event(
+              PersonGenerator.nextPerson(
+                  newEventId, eventRandom, adjustedEventTimestamp, config));
     } else if (rem < config.personProportion + config.auctionProportion) {
       event =
           new Event(
-              AuctionGenerator.nextAuction(eventsCountSoFar, newEventId, random, adjustedEventTimestamp, config));
+              AuctionGenerator.nextAuction(
+                  eventsCountSoFar, newEventId, eventRandom, adjustedEventTimestamp, config));
     } else {
-      event = new Event(BidGenerator.nextBid(newEventId, random, adjustedEventTimestamp, config));
+      event =
+          new Event(BidGenerator.nextBid(newEventId, eventRandom, adjustedEventTimestamp, config));
     }
 
     eventsCountSoFar++;

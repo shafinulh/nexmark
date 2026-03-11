@@ -37,6 +37,7 @@ CREATE TABLE datagen (
     WATERMARK FOR `dateTime` AS `dateTime` - INTERVAL '4' SECOND
 ) WITH (
     'connector' = 'nexmark',
+    'base-time' = '${BASE_TIME_MILLIS}',
     'first-event.rate' = '${TPS}',
     'next-event.rate' = '${TPS}',
     'events.num' = '${EVENTS_NUM}',

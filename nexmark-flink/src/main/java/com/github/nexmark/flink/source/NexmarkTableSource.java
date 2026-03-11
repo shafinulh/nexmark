@@ -83,11 +83,71 @@ public class NexmarkTableSource implements ScanTableSource {
 							(DataType) ((Schema.UnresolvedPhysicalColumn) unresolvedColumn).getDataType())
 					.collect(Collectors.toList()));
 
+	public static final Schema PERSON_SCHEMA = Schema.newBuilder()
+			.column("id", BIGINT())
+			.column("name", STRING())
+			.column("emailAddress", STRING())
+			.column("creditCard", STRING())
+			.column("city", STRING())
+			.column("state", STRING())
+			.column("dateTime", TIMESTAMP(3))
+			.column("extra", STRING())
+			.build();
+
+	public static final ResolvedSchema RESOLVED_PERSON_SCHEMA = ResolvedSchema.physical(
+			PERSON_SCHEMA.getColumns().stream().map(Schema.UnresolvedColumn::getName).collect(Collectors.toList()),
+			PERSON_SCHEMA.getColumns().stream()
+					.map(unresolvedColumn ->
+							(DataType) ((Schema.UnresolvedPhysicalColumn) unresolvedColumn).getDataType())
+					.collect(Collectors.toList()));
+
+	public static final Schema AUCTION_SCHEMA = Schema.newBuilder()
+			.column("id", BIGINT())
+			.column("itemName", STRING())
+			.column("description", STRING())
+			.column("initialBid", BIGINT())
+			.column("reserve", BIGINT())
+			.column("dateTime", TIMESTAMP(3))
+			.column("expires", TIMESTAMP(3))
+			.column("seller", BIGINT())
+			.column("category", BIGINT())
+			.column("extra", STRING())
+			.build();
+
+	public static final ResolvedSchema RESOLVED_AUCTION_SCHEMA = ResolvedSchema.physical(
+			AUCTION_SCHEMA.getColumns().stream().map(Schema.UnresolvedColumn::getName).collect(Collectors.toList()),
+			AUCTION_SCHEMA.getColumns().stream()
+					.map(unresolvedColumn ->
+							(DataType) ((Schema.UnresolvedPhysicalColumn) unresolvedColumn).getDataType())
+					.collect(Collectors.toList()));
+
+	public static final Schema BID_SCHEMA = Schema.newBuilder()
+			.column("id", BIGINT())
+			.column("auction", BIGINT())
+			.column("bidder", BIGINT())
+			.column("price", BIGINT())
+			.column("channel", STRING())
+			.column("url", STRING())
+			.column("dateTime", TIMESTAMP(3))
+			.column("extra", STRING())
+			.build();
+
+	public static final ResolvedSchema RESOLVED_BID_SCHEMA = ResolvedSchema.physical(
+			BID_SCHEMA.getColumns().stream().map(Schema.UnresolvedColumn::getName).collect(Collectors.toList()),
+			BID_SCHEMA.getColumns().stream()
+					.map(unresolvedColumn ->
+							(DataType) ((Schema.UnresolvedPhysicalColumn) unresolvedColumn).getDataType())
+					.collect(Collectors.toList()));
+
 
 	private final GeneratorConfig config;
+	private final ResolvedSchema schema;
+	private final NexmarkEventType eventType;
 
-	public NexmarkTableSource(GeneratorConfig config) {
+	public NexmarkTableSource(GeneratorConfig config, ResolvedSchema schema, NexmarkEventType eventType) {
 		this.config = config;
+		this.schema = schema;
+		this.eventType = eventType;
 	}
 
 	@Override
@@ -98,13 +158,13 @@ public class NexmarkTableSource implements ScanTableSource {
 	@Override
 	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext scanContext) {
 		TypeInformation<RowData> outputType = scanContext
-			.createTypeInformation(RESOLVED_SCHEMA.toPhysicalRowDataType());
-		return SourceProvider.of(new NexmarkSource(config, outputType));
+			.createTypeInformation(schema.toPhysicalRowDataType());
+		return SourceProvider.of(new NexmarkSource(config, outputType, eventType));
 	}
 
 	@Override
 	public DynamicTableSource copy() {
-		return new NexmarkTableSource(config);
+		return new NexmarkTableSource(config, schema, eventType);
 	}
 
 	@Override
@@ -117,18 +177,22 @@ public class NexmarkTableSource implements ScanTableSource {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		NexmarkTableSource that = (NexmarkTableSource) o;
-		return Objects.equals(config, that.config);
+		return Objects.equals(config, that.config)
+				&& Objects.equals(schema, that.schema)
+				&& eventType == that.eventType;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(config);
+		return Objects.hash(config, schema, eventType);
 	}
 
 	@Override
 	public String toString() {
 		return "NexmarkTableSource{" +
 			"config=" + config +
+			", schema=" + schema +
+			", eventType=" + eventType +
 			'}';
 	}
 }

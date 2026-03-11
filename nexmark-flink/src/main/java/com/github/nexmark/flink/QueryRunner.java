@@ -148,8 +148,10 @@ public class QueryRunner {
 		LocalDateTime submitTime = currentTime.minusNanos(currentTime.getNano());
 
 		Map<String, String> varsMap = new HashMap<>();
+		long baseTimeMillis = System.currentTimeMillis();
 		varsMap.put("NEXMARK_DIR", location.toFile().getAbsolutePath());
 		varsMap.put("SUBMIT_TIME", submitTime.toString());
+		varsMap.put("BASE_TIME_MILLIS", String.valueOf(baseTimeMillis));
 		varsMap.put("FLINK_HOME", flinkDist.toFile().getAbsolutePath());
 		varsMap.put("TPS", String.valueOf(workload.getTps()));
 		varsMap.put("EVENTS_NUM", String.valueOf(workload.getEventsNum()));
@@ -163,11 +165,23 @@ public class QueryRunner {
 
 	private List<String> initializeAllSqlLines(Map<String, String> vars) throws IOException {
 		List<String> allLines = new ArrayList<>();
-		allLines.addAll(initializeSqlFileLines(vars, new File(queryLocation.toFile(), "ddl_gen.sql")));
+		allLines.addAll(initializeSqlFileLines(vars, new File(queryLocation.toFile(), getDatagenDdlFile())));
 		allLines.addAll(initializeSqlFileLines(vars, new File(queryLocation.toFile(), "ddl_kafka.sql")));
-		allLines.addAll(initializeSqlFileLines(vars, new File(queryLocation.toFile(), "ddl_views.sql")));
+		allLines.addAll(initializeSqlFileLines(vars, new File(queryLocation.toFile(), getViewsDdlFile())));
 		allLines.addAll(initializeSqlFileLines(vars, new File(queryLocation.toFile(), queryName + ".sql")));
 		return allLines;
+	}
+
+	private String getDatagenDdlFile() {
+		return isUniqueQuery() ? "ddl_gen_unique.sql" : "ddl_gen.sql";
+	}
+
+	private String getViewsDdlFile() {
+		return isUniqueQuery() ? "ddl_views_unique.sql" : "ddl_views.sql";
+	}
+
+	private boolean isUniqueQuery() {
+		return queryName.endsWith("_unique");
 	}
 
 	private List<String> initializeSqlFileLines(Map<String, String> vars, File sqlFile) throws IOException {

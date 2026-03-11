@@ -19,6 +19,7 @@
 package com.github.nexmark.flink.source;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -36,7 +37,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.github.nexmark.flink.source.NexmarkTableSource.BID_SCHEMA;
 import static com.github.nexmark.flink.source.NexmarkTableSource.NEXMARK_SCHEMA;
+import static com.github.nexmark.flink.source.NexmarkTableSource.PERSON_SCHEMA;
+import static com.github.nexmark.flink.source.NexmarkTableSource.RESOLVED_BID_SCHEMA;
+import static com.github.nexmark.flink.source.NexmarkTableSource.RESOLVED_PERSON_SCHEMA;
 import static com.github.nexmark.flink.source.NexmarkTableSource.RESOLVED_SCHEMA;
 import static org.junit.Assert.assertEquals;
 
@@ -59,7 +64,8 @@ public class NexmarkTableSourceFactoryTest {
 			0L,
 			1
 		);
-		NexmarkTableSource expectedSource = new NexmarkTableSource(config);
+		NexmarkTableSource expectedSource =
+				new NexmarkTableSource(config, RESOLVED_SCHEMA, NexmarkEventType.ALL);
 		assertEquals(expectedSource, actualSource);
 	}
 
@@ -108,7 +114,50 @@ public class NexmarkTableSourceFactoryTest {
 			0L,
 			1
 		);
-		NexmarkTableSource expectedSource = new NexmarkTableSource(config);
+		NexmarkTableSource expectedSource =
+				new NexmarkTableSource(config, RESOLVED_SCHEMA, NexmarkEventType.ALL);
+		assertEquals(expectedSource, actualSource);
+	}
+
+	@Test
+	public void testSeparateBidSourceProperties() {
+		Map<String, String> properties = getAllOptions();
+		properties.put("event.type", "bid");
+		properties.put("events.num", "100");
+
+		DynamicTableSource actualSource = createTableSource(properties, BID_SCHEMA, RESOLVED_BID_SCHEMA);
+		NexmarkConfiguration nexmarkConf = new NexmarkConfiguration();
+		nexmarkConf.numEvents = 100;
+
+		GeneratorConfig config = new GeneratorConfig(
+				nexmarkConf,
+				System.currentTimeMillis(),
+				1,
+				nexmarkConf.numEvents,
+				0L,
+				1
+		);
+		NexmarkTableSource expectedSource =
+				new NexmarkTableSource(config, RESOLVED_BID_SCHEMA, NexmarkEventType.BID);
+		assertEquals(expectedSource, actualSource);
+	}
+
+	@Test
+	public void testSeparatePersonSourceProperties() {
+		Map<String, String> properties = getAllOptions();
+		properties.put("event.type", "person");
+
+		DynamicTableSource actualSource = createTableSource(properties, PERSON_SCHEMA, RESOLVED_PERSON_SCHEMA);
+		GeneratorConfig config = new GeneratorConfig(
+				new NexmarkConfiguration(),
+				System.currentTimeMillis(),
+				1,
+				0,
+				0L,
+				1
+		);
+		NexmarkTableSource expectedSource =
+				new NexmarkTableSource(config, RESOLVED_PERSON_SCHEMA, NexmarkEventType.PERSON);
 		assertEquals(expectedSource, actualSource);
 	}
 
@@ -119,17 +168,24 @@ public class NexmarkTableSourceFactoryTest {
 	}
 
 	private static DynamicTableSource createTableSource(Map<String, String> options) {
+		return createTableSource(options, NEXMARK_SCHEMA, RESOLVED_SCHEMA);
+	}
+
+	private static DynamicTableSource createTableSource(
+			Map<String, String> options,
+			Schema schema,
+			ResolvedSchema resolvedSchema) {
 		return FactoryUtil.createDynamicTableSource(
 			null,
 			ObjectIdentifier.of("default", "default", "t1"),
 			new ResolvedCatalogTable(
 					CatalogTable.newBuilder()
-							.schema(NEXMARK_SCHEMA)
+							.schema(schema)
 							.comment("mock source")
 							.partitionKeys(new ArrayList<>())
 							.options(options)
 							.build(),
-					RESOLVED_SCHEMA),
+					resolvedSchema),
 			Collections.emptyMap(),
 			new Configuration(),
 			NexmarkTableSourceFactoryTest.class.getClassLoader(),

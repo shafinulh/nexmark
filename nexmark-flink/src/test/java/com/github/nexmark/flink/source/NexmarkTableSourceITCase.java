@@ -28,7 +28,16 @@ import org.apache.flink.util.CloseableIterator;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+
 public class NexmarkTableSourceITCase {
+
+	private static final long FIXED_BASE_TIME = 1_700_000_000_000L;
+	private static final String FIXED_EVENTS_NUM = "500";
 
 	private StreamTableEnvironment tEnv;
 
@@ -36,7 +45,7 @@ public class NexmarkTableSourceITCase {
 	public void before() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		tEnv = StreamTableEnvironment.create(env);
-		env.setParallelism(4);
+		env.setParallelism(1);
 		env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
 		env.getCheckpointConfig().setCheckpointInterval(1000L);
 
@@ -79,7 +88,8 @@ public class NexmarkTableSourceITCase {
 			"    WATERMARK FOR `dateTime` AS `dateTime` - INTERVAL '4' SECOND" +
 			") WITH (\n" +
 			"    'connector' = 'nexmark',\n" +
-			"    'events.num' = '500'\n" +
+			"    'base-time' = '" + FIXED_BASE_TIME + "',\n" +
+			"    'events.num' = '" + FIXED_EVENTS_NUM + "'\n" +
 			")");
 		tEnv.executeSql("CREATE VIEW person AS\n" +
 			"SELECT  person.id,\n" +
@@ -109,6 +119,92 @@ public class NexmarkTableSourceITCase {
 				"    bid.url,\n" +
 				"    `dateTime`,\n" +
 				"    bid.extra FROM nexmark AS t WHERE event_type = 2");
+
+		tEnv.executeSql("CREATE TABLE person_unique (\n" +
+			"    id BIGINT,\n" +
+			"    name VARCHAR,\n" +
+			"    emailAddress VARCHAR,\n" +
+			"    creditCard VARCHAR,\n" +
+			"    city VARCHAR,\n" +
+			"    state VARCHAR,\n" +
+			"    `dateTime` TIMESTAMP(3),\n" +
+			"    extra VARCHAR,\n" +
+			"    WATERMARK FOR `dateTime` AS `dateTime` - INTERVAL '4' SECOND,\n" +
+			"    PRIMARY KEY (id) NOT ENFORCED\n" +
+			") WITH (\n" +
+			"    'connector' = 'nexmark',\n" +
+			"    'event.type' = 'person',\n" +
+			"    'base-time' = '" + FIXED_BASE_TIME + "',\n" +
+			"    'events.num' = '" + FIXED_EVENTS_NUM + "'\n" +
+			")");
+		tEnv.executeSql("CREATE TABLE auction_unique (\n" +
+			"    id BIGINT,\n" +
+			"    itemName VARCHAR,\n" +
+			"    description VARCHAR,\n" +
+			"    initialBid BIGINT,\n" +
+			"    reserve BIGINT,\n" +
+			"    `dateTime` TIMESTAMP(3),\n" +
+			"    expires TIMESTAMP(3),\n" +
+			"    seller BIGINT,\n" +
+			"    category BIGINT,\n" +
+			"    extra VARCHAR,\n" +
+			"    WATERMARK FOR `dateTime` AS `dateTime` - INTERVAL '4' SECOND,\n" +
+			"    PRIMARY KEY (id) NOT ENFORCED\n" +
+			") WITH (\n" +
+			"    'connector' = 'nexmark',\n" +
+			"    'event.type' = 'auction',\n" +
+			"    'base-time' = '" + FIXED_BASE_TIME + "',\n" +
+			"    'events.num' = '" + FIXED_EVENTS_NUM + "'\n" +
+			")");
+		tEnv.executeSql("CREATE TABLE bid_unique (\n" +
+			"    id BIGINT,\n" +
+			"    auction BIGINT,\n" +
+			"    bidder BIGINT,\n" +
+			"    price BIGINT,\n" +
+			"    channel VARCHAR,\n" +
+			"    url VARCHAR,\n" +
+			"    `dateTime` TIMESTAMP(3),\n" +
+			"    extra VARCHAR,\n" +
+			"    WATERMARK FOR `dateTime` AS `dateTime` - INTERVAL '4' SECOND,\n" +
+			"    PRIMARY KEY (id) NOT ENFORCED\n" +
+			") WITH (\n" +
+			"    'connector' = 'nexmark',\n" +
+			"    'event.type' = 'bid',\n" +
+			"    'base-time' = '" + FIXED_BASE_TIME + "',\n" +
+			"    'events.num' = '" + FIXED_EVENTS_NUM + "'\n" +
+			")");
+	}
+
+	@Test
+	public void testOriginalAndSeparatedTablesProduceSameStreamsAndQ20Output() {
+		assertEquals(
+				collectRows("SELECT * FROM person"),
+				collectRows("SELECT * FROM person_unique"));
+
+		assertEquals(
+				collectRows("SELECT * FROM auction"),
+				collectRows("SELECT * FROM auction_unique"));
+
+		assertEquals(
+				collectRows(
+						"SELECT auction, bidder, price, channel, url, `dateTime`, extra FROM bid"),
+				collectRows(
+						"SELECT auction, bidder, price, channel, url, `dateTime`, extra FROM bid_unique"));
+
+		String q20Original =
+				"SELECT\n"
+						+ "    auction, bidder, price, channel, url, B.`dateTime`, B.extra,\n"
+						+ "    itemName, description, initialBid, reserve, A.`dateTime`, expires, seller, category, A.extra\n"
+						+ "FROM bid AS B INNER JOIN auction AS A on B.auction = A.id\n"
+						+ "WHERE A.category = 10";
+		String q20Separated =
+				"SELECT\n"
+						+ "    auction, bidder, price, channel, url, B.`dateTime`, B.extra,\n"
+						+ "    itemName, description, initialBid, reserve, A.`dateTime`, expires, seller, category, A.extra\n"
+						+ "FROM bid_unique AS B INNER JOIN auction_unique AS A on B.auction = A.id\n"
+						+ "WHERE A.category = 10";
+
+		assertEquals(collectRowsSorted(q20Original), collectRowsSorted(q20Separated));
 	}
 
 	@Test
@@ -129,6 +225,21 @@ public class NexmarkTableSourceITCase {
 	@Test
 	public void testBidSource() {
 		print(tEnv.executeSql("SELECT * FROM bid"));
+	}
+
+	@Test
+	public void testUniquePersonSource() {
+		print(tEnv.executeSql("SELECT * FROM person_unique"));
+	}
+
+	@Test
+	public void testUniqueAuctionSource() {
+		print(tEnv.executeSql("SELECT * FROM auction_unique"));
+	}
+
+	@Test
+	public void testUniqueBidSource() {
+		print(tEnv.executeSql("SELECT * FROM bid_unique"));
 	}
 
 	@Test
@@ -322,6 +433,24 @@ public class NexmarkTableSourceITCase {
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	private List<String> collectRows(String query) {
+		List<String> rows = new ArrayList<>();
+		try (CloseableIterator<Row> iter = tEnv.executeSql(query).collect()) {
+			while (iter.hasNext()) {
+				rows.add(iter.next().toString());
+			}
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+		return rows;
+	}
+
+	private List<String> collectRowsSorted(String query) {
+		List<String> rows = collectRows(query);
+		Collections.sort(rows);
+		return rows;
 	}
 
 	private void removeRowTime() {

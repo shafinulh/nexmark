@@ -25,6 +25,9 @@ import java.util.Objects;
 /** A bid for an item on auction. */
 public class Bid implements Serializable {
 
+	/** Unique id of this bid event. */
+	public long id;
+
 	/** Id of auction this bid is for. */
 	public long auction; // foreign key: Auction.id
 
@@ -49,7 +52,8 @@ public class Bid implements Serializable {
 	/** Additional arbitrary payload for performance testing. */
 	public String extra;
 
-	public Bid(long auction, long bidder, long price, String channel, String url, Instant dateTime, String extra) {
+	public Bid(long id, long auction, long bidder, long price, String channel, String url, Instant dateTime, String extra) {
+		this.id = id;
 		this.auction = auction;
 		this.bidder = bidder;
 		this.price = price;
@@ -69,7 +73,8 @@ public class Bid implements Serializable {
 		}
 
 		Bid other = (Bid) otherObject;
-		return Objects.equals(auction, other.auction)
+		return Objects.equals(id, other.id)
+			&& Objects.equals(auction, other.auction)
 			&& Objects.equals(bidder, other.bidder)
 			&& Objects.equals(price, other.price)
 			&& Objects.equals(channel, other.channel)
@@ -80,13 +85,14 @@ public class Bid implements Serializable {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(auction, bidder, price, channel, url, dateTime, extra);
+		return Objects.hash(id, auction, bidder, price, channel, url, dateTime, extra);
 	}
 
 	@Override
 	public String toString() {
 		return "Bid{" +
-				"auction=" + auction +
+				"id=" + id +
+				", auction=" + auction +
 				", bidder=" + bidder +
 				", price=" + price +
 				", channel=" + channel +

@@ -23,6 +23,7 @@ import com.github.nexmark.flink.generator.GeneratorConfig;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
@@ -44,16 +45,22 @@ public class NexmarkTableSourceFactory implements DynamicTableSourceFactory {
 
 		int parallelism = context.getConfiguration().get(CoreOptions.DEFAULT_PARALLELISM);
 		NexmarkConfiguration nexmarkConf = NexmarkSourceOptions.convertToNexmarkConfiguration(config);
+		NexmarkEventType eventType = NexmarkEventType.fromOptionValue(config.get(NexmarkSourceOptions.EVENT_TYPE));
+		ResolvedSchema schema = context.getCatalogTable().getResolvedSchema();
+		long baseTime = config.get(NexmarkSourceOptions.BASE_TIME);
+		if (baseTime < 0L) {
+			baseTime = System.currentTimeMillis();
+		}
 		nexmarkConf.numEventGenerators = parallelism;
 		GeneratorConfig generatorConfig = new GeneratorConfig(
 			nexmarkConf,
-			System.currentTimeMillis(),
+			baseTime,
 			1,
 			nexmarkConf.numEvents,
 			nexmarkConf.stopAtEvent,
 			1);
 
-		return new NexmarkTableSource(generatorConfig);
+		return new NexmarkTableSource(generatorConfig, schema, eventType);
 	}
 
 	@Override
@@ -87,6 +94,8 @@ public class NexmarkTableSourceFactory implements DynamicTableSourceFactory {
 		sets.add(NexmarkSourceOptions.KEEP_ALIVE);
 		sets.add(NexmarkSourceOptions.STOP_AT);
 		sets.add(NexmarkSourceOptions.MAX_EMIT_SPEED);
+		sets.add(NexmarkSourceOptions.EVENT_TYPE);
+		sets.add(NexmarkSourceOptions.BASE_TIME);
 		return sets;
 	}
 }

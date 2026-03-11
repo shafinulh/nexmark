@@ -41,7 +41,7 @@ public class BidGenerator {
   private static final int CHANNELS_NUMBER = 10_000;
 
   private static final String[] HOT_CHANNELS = new String[] {"Google", "Facebook", "Baidu", "Apple"};
-  private static final SplittableRandom random = new SplittableRandom();
+  private static final SplittableRandom random = new SplittableRandom(2L);
   private static final String[] HOT_URLS = new String[] {getBaseUrl(random), getBaseUrl(random), getBaseUrl(random), getBaseUrl(random)};
 
   private static final Tuple2<String, String>[] CHANNEL_URL_CACHE = createChannelUrlCache(random);
@@ -97,7 +97,7 @@ public class BidGenerator {
 
     int currentSize = 8 + 8 + 8 + 8;
     String extra = StringsGenerator.nextExtra(random, currentSize, config.getAvgBidByteSize());
-    return new Bid(auction, bidder, price, channel, url, Instant.ofEpochMilli(timestamp), extra);
+    return new Bid(eventId, auction, bidder, price, channel, url, Instant.ofEpochMilli(timestamp), extra);
   }
 
   private static String getBaseUrl(SplittableRandom random) {
