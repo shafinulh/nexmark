@@ -213,6 +213,7 @@ public class QueryRunnerV2 {
 		varsMap.put("AUCTION_PROPORTION", String.valueOf(workload.getAuctionProportion()));
 		varsMap.put("BID_PROPORTION", String.valueOf(workload.getBidProportion()));
 		varsMap.put("NEXMARK_TABLE", "datagen");
+		varsMap.put("MAX_EMIT_SPEED", "true");
 		return varsMap;
 	}
 
@@ -260,7 +261,8 @@ public class QueryRunnerV2 {
 		AutoClosableProcess
 				.create(commands.toArray(new String[0]))
 				.setStdInputs(sqlLines.toArray(new String[0]))
-				.setStdoutProcessor(output::append) // logging the SQL statements and error message
+				.setStdoutProcessor(line -> output.append(line).append(System.lineSeparator()))
+				.setStderrProcessor(line -> output.append(line).append(System.lineSeparator()))
 				.runBlocking();
 
 		Pattern pattern = Pattern.compile("Job ID: ([A-Za-z0-9]{32})");
@@ -268,7 +270,10 @@ public class QueryRunnerV2 {
 		if (matcher.find()) {
 			return matcher.group(1);
 		} else {
-			throw new RuntimeException("Cannot find Job ID from the sql client output, maybe the job is not successfully submitted.");
+			throw new RuntimeException(
+					"Cannot find Job ID from the sql client output, maybe the job is not "
+							+ "successfully submitted. SQL client output:\n"
+							+ output);
 		}
 	}
 
