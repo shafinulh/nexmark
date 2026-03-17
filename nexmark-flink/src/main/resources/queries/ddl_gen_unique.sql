@@ -19,7 +19,12 @@ CREATE TABLE person_src (
     'person.proportion' = '${PERSON_PROPORTION}',
     'auction.proportion' = '${AUCTION_PROPORTION}',
     'bid.proportion' = '${BID_PROPORTION}',
-    'max-emit-speed' = '${MAX_EMIT_SPEED}'
+    'max-emit-speed' = '${MAX_EMIT_SPEED}',
+    'scan.watermark.emit.strategy' = 'on-event',
+    'scan.watermark.idle-timeout' = '30s',
+    'scan.watermark.alignment.group' = 'nexmark-events',
+    'scan.watermark.alignment.max-drift' = '1s',
+    'scan.watermark.alignment.update-interval' = '200ms'
 );
 
 CREATE TABLE auction_src (
@@ -45,7 +50,12 @@ CREATE TABLE auction_src (
     'person.proportion' = '${PERSON_PROPORTION}',
     'auction.proportion' = '${AUCTION_PROPORTION}',
     'bid.proportion' = '${BID_PROPORTION}',
-    'max-emit-speed' = '${MAX_EMIT_SPEED}'
+    'max-emit-speed' = '${MAX_EMIT_SPEED}',
+    'scan.watermark.emit.strategy' = 'on-event',
+    'scan.watermark.idle-timeout' = '30s',
+    'scan.watermark.alignment.group' = 'nexmark-events',
+    'scan.watermark.alignment.max-drift' = '1s',
+    'scan.watermark.alignment.update-interval' = '200ms'
 );
 
 CREATE TABLE bid_src (
@@ -69,7 +79,12 @@ CREATE TABLE bid_src (
     'person.proportion' = '${PERSON_PROPORTION}',
     'auction.proportion' = '${AUCTION_PROPORTION}',
     'bid.proportion' = '${BID_PROPORTION}',
-    'max-emit-speed' = '${MAX_EMIT_SPEED}'
+    'max-emit-speed' = '${MAX_EMIT_SPEED}',
+    'scan.watermark.emit.strategy' = 'on-event',
+    'scan.watermark.idle-timeout' = '30s',
+    'scan.watermark.alignment.group' = 'nexmark-events',
+    'scan.watermark.alignment.max-drift' = '1s',
+    'scan.watermark.alignment.update-interval' = '200ms'
 );
 
 CREATE TABLE bid_modified_src (
@@ -93,5 +108,10 @@ CREATE TABLE bid_modified_src (
     'person.proportion' = '${PERSON_PROPORTION}',
     'auction.proportion' = '${AUCTION_PROPORTION}',
     'bid.proportion' = '${BID_PROPORTION}',
-    'max-emit-speed' = '${MAX_EMIT_SPEED}'
+    'max-emit-speed' = '${MAX_EMIT_SPEED}',
+    'scan.watermark.emit.strategy' = 'on-event',
+    'scan.watermark.idle-timeout' = '30s',
+    'scan.watermark.alignment.group' = 'nexmark-events',
+    'scan.watermark.alignment.max-drift' = '1s',
+    'scan.watermark.alignment.update-interval' = '200ms'
 );

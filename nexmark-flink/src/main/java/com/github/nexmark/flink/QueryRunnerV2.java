@@ -24,7 +24,6 @@ import com.github.nexmark.flink.metric.FlinkRestClient;
 import com.github.nexmark.flink.metric.JobBenchmarkMetric;
 import com.github.nexmark.flink.metric.MetricReporter;
 import com.github.nexmark.flink.metric.Savepoint;
-import com.github.nexmark.flink.utils.AutoClosableProcess;
 import com.github.nexmark.flink.workload.Workload;
 
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -32,7 +31,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -191,6 +193,12 @@ public class QueryRunnerV2 {
 		varsMap.put("AUCTION_PROPORTION", String.valueOf(workload.getAuctionProportion()));
 		varsMap.put("BID_PROPORTION", String.valueOf(workload.getBidProportion()));
 		varsMap.put("NEXMARK_TABLE", "datagen");
+		varsMap.put("PERSON_TABLE", shouldReadUniqueKafkaTables() ? "person_kafka" : "person_src");
+		varsMap.put("AUCTION_TABLE", shouldReadUniqueKafkaTables() ? "auction_kafka" : "auction_src");
+		varsMap.put("BID_TABLE", shouldReadUniqueKafkaTables() ? "bid_kafka" : "bid_src");
+		varsMap.put("BID_MODIFIED_TABLE", shouldReadUniqueKafkaTables() ? "bid_kafka" : "bid_modified_src");
+		varsMap.put("BOOTSTRAP_SERVERS", workload.getKafkaServers() == null ? "" : workload.getKafkaServers());
+		varsMap.put("MAX_EMIT_SPEED", isKafkaPrepareQuery() ? "false" : "true");
 		return varsMap;
 	}
 
@@ -222,6 +230,14 @@ public class QueryRunnerV2 {
 		return queryName.endsWith("_unique");
 	}
 
+	private boolean isKafkaPrepareQuery() {
+		return queryName.startsWith("insert_kafka");
+	}
+
+	private boolean shouldReadUniqueKafkaTables() {
+		return isUniqueQuery() && workload.getKafkaServers() != null && !isKafkaPrepareQuery();
+	}
+
 	private List<String> initializeSqlFileLines(Map<String, String> vars, File sqlFile) throws IOException {
 		List<String> lines = Files.readAllLines(sqlFile.toPath());
 		List<String> result = new ArrayList<>();
@@ -236,29 +252,55 @@ public class QueryRunnerV2 {
 
 	public String submitSQLJob(List<String> sqlLines) throws IOException {
 		Path flinkBin = flinkDist.resolve("bin");
-		final List<String> commands = new ArrayList<>();
-		commands.add(flinkBin.resolve("sql-client.sh").toAbsolutePath().toString());
-		commands.add("embedded");
-
 		LOG.info("\n================================================================================"
 				+ "\nQuery {} is running."
 				+ "\n--------------------------------------------------------------------------------"
 				+ "\n"
 			, queryName);
 
+		Path sqlFile = Files.createTempFile("nexmark-sql-submit-", ".sql");
+		Files.write(sqlFile, sqlLines, StandardCharsets.UTF_8);
+
 		StringBuilder output = new StringBuilder();
-		AutoClosableProcess
-				.create(commands.toArray(new String[0]))
-				.setStdInputs(sqlLines.toArray(new String[0]))
-				.setStdoutProcessor(output::append) // logging the SQL statements and error message
-				.runBlocking();
+		int exitCode;
+		try {
+			Process process = new ProcessBuilder(
+					flinkBin.resolve("sql-client.sh").toAbsolutePath().toString(),
+					"embedded",
+					"-f",
+					sqlFile.toAbsolutePath().toString())
+					.redirectErrorStream(true)
+					.start();
+
+			try (BufferedReader reader = new BufferedReader(
+					new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+				String line;
+				while ((line = reader.readLine()) != null) {
+					output.append(line).append(System.lineSeparator());
+				}
+			}
+
+			try {
+				exitCode = process.waitFor();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new IOException("Interrupted while waiting for sql-client.sh to finish.", e);
+			}
+		} finally {
+			Files.deleteIfExists(sqlFile);
+		}
+
+		if (exitCode != 0) {
+			throw new IOException("sql-client.sh failed with exit code "
+					+ exitCode + ". Output:\n" + output);
+		}
 
 		Pattern pattern = Pattern.compile("Job ID: ([A-Za-z0-9]{32})");
 		Matcher matcher = pattern.matcher(output.toString());
 		if (matcher.find()) {
 			return matcher.group(1);
 		} else {
-			throw new RuntimeException("Cannot find Job ID from the sql client output, maybe the job is not successfully submitted.");
+			throw new RuntimeException("Cannot find Job ID from the sql client output. Output:\n" + output);
 		}
 	}
 

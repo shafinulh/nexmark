@@ -19,15 +19,20 @@
 package com.github.nexmark.flink.source;
 
 import com.github.nexmark.flink.generator.GeneratorConfig;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.ProviderContext;
+import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
-import org.apache.flink.table.connector.source.SourceProvider;
+import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -42,7 +47,7 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 /**
  * Table source for Nexmark.
  */
-public class NexmarkTableSource implements ScanTableSource {
+public class NexmarkTableSource implements ScanTableSource, SupportsWatermarkPushDown {
 
 	public static final Schema NEXMARK_SCHEMA = Schema.newBuilder()
 		.column("event_type", INT())
@@ -143,6 +148,7 @@ public class NexmarkTableSource implements ScanTableSource {
 	private final GeneratorConfig config;
 	private final ResolvedSchema schema;
 	private final NexmarkEventType eventType;
+	private WatermarkStrategy<RowData> watermarkStrategy = WatermarkStrategy.noWatermarks();
 
 	public NexmarkTableSource(GeneratorConfig config, ResolvedSchema schema, NexmarkEventType eventType) {
 		this.config = config;
@@ -159,12 +165,34 @@ public class NexmarkTableSource implements ScanTableSource {
 	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext scanContext) {
 		TypeInformation<RowData> outputType = scanContext
 			.createTypeInformation(schema.toPhysicalRowDataType());
-		return SourceProvider.of(new NexmarkSource(config, outputType, eventType));
+		return new DataStreamScanProvider() {
+			@Override
+			public DataStream<RowData> produceDataStream(
+					ProviderContext providerContext,
+					StreamExecutionEnvironment execEnv) {
+				return execEnv.fromSource(
+						new NexmarkSource(config, outputType, eventType),
+						watermarkStrategy,
+						"NexmarkSource");
+			}
+
+			@Override
+			public boolean isBounded() {
+				return false;
+			}
+		};
+	}
+
+	@Override
+	public void applyWatermark(WatermarkStrategy<RowData> watermarkStrategy) {
+		this.watermarkStrategy = watermarkStrategy;
 	}
 
 	@Override
 	public DynamicTableSource copy() {
-		return new NexmarkTableSource(config, schema, eventType);
+		NexmarkTableSource copied = new NexmarkTableSource(config, schema, eventType);
+		copied.watermarkStrategy = watermarkStrategy;
+		return copied;
 	}
 
 	@Override

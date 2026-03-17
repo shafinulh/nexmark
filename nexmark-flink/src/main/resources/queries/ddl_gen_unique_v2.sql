@@ -21,7 +21,12 @@ CREATE TABLE person_src (
     'bid.proportion' = '${BID_PROPORTION}',
     'keep-alive' = '${KEEP_ALIVE}',
     'stop-at' = '${STOP_AT}',
-    'max-emit-speed' = 'true'
+    'max-emit-speed' = 'true',
+    'scan.watermark.emit.strategy' = 'on-event',
+    'scan.watermark.idle-timeout' = '30s',
+    'scan.watermark.alignment.group' = 'nexmark-events',
+    'scan.watermark.alignment.max-drift' = '1s',
+    'scan.watermark.alignment.update-interval' = '200ms'
 );
 
 CREATE TABLE auction_src (
@@ -49,7 +54,12 @@ CREATE TABLE auction_src (
     'bid.proportion' = '${BID_PROPORTION}',
     'keep-alive' = '${KEEP_ALIVE}',
     'stop-at' = '${STOP_AT}',
-    'max-emit-speed' = 'true'
+    'max-emit-speed' = 'true',
+    'scan.watermark.emit.strategy' = 'on-event',
+    'scan.watermark.idle-timeout' = '30s',
+    'scan.watermark.alignment.group' = 'nexmark-events',
+    'scan.watermark.alignment.max-drift' = '1s',
+    'scan.watermark.alignment.update-interval' = '200ms'
 );
 
 CREATE TABLE bid_src (
@@ -75,7 +85,12 @@ CREATE TABLE bid_src (
     'bid.proportion' = '${BID_PROPORTION}',
     'keep-alive' = '${KEEP_ALIVE}',
     'stop-at' = '${STOP_AT}',
-    'max-emit-speed' = 'true'
+    'max-emit-speed' = 'true',
+    'scan.watermark.emit.strategy' = 'on-event',
+    'scan.watermark.idle-timeout' = '30s',
+    'scan.watermark.alignment.group' = 'nexmark-events',
+    'scan.watermark.alignment.max-drift' = '1s',
+    'scan.watermark.alignment.update-interval' = '200ms'
 );
 
 CREATE TABLE bid_modified_src (
@@ -101,5 +116,10 @@ CREATE TABLE bid_modified_src (
     'bid.proportion' = '${BID_PROPORTION}',
     'keep-alive' = '${KEEP_ALIVE}',
     'stop-at' = '${STOP_AT}',
-    'max-emit-speed' = 'true'
+    'max-emit-speed' = 'true',
+    'scan.watermark.emit.strategy' = 'on-event',
+    'scan.watermark.idle-timeout' = '30s',
+    'scan.watermark.alignment.group' = 'nexmark-events',
+    'scan.watermark.alignment.max-drift' = '1s',
+    'scan.watermark.alignment.update-interval' = '200ms'
 );
