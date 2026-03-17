@@ -205,7 +205,8 @@ public class Benchmark {
 				throw new IllegalArgumentException(
 						String.format("The workload of query %s is not defined.", queryName));
 			}
-			workload.validateWorkload(monitorDuration);
+			Duration effectiveMonitorDuration = getEffectiveMonitorDuration(workload, monitorDuration);
+			workload.validateWorkload(effectiveMonitorDuration);
 
 			MetricReporter reporter =
 					new MetricReporter(
@@ -213,7 +214,7 @@ public class Benchmark {
 							cpuMetricReceiver,
 							monitorDelay,
 							monitorInterval,
-							monitorDuration);
+							effectiveMonitorDuration);
 			QueryRunner runner =
 					new QueryRunner(
 							queryName,
@@ -246,7 +247,8 @@ public class Benchmark {
 				throw new IllegalArgumentException(
 						String.format("The workload of query %s is not defined.", queryName));
 			}
-			workload.validateWorkload(monitorDuration);
+			Duration effectiveMonitorDuration = getEffectiveMonitorDuration(workload, monitorDuration);
+			workload.validateWorkload(effectiveMonitorDuration);
 
 			MetricReporter reporter =
 					new MetricReporter(
@@ -254,7 +256,7 @@ public class Benchmark {
 							cpuMetricReceiver,
 							monitorDelay,
 							monitorInterval,
-							monitorDuration);
+							effectiveMonitorDuration);
 			QueryRunnerV2 runner =
 					new QueryRunnerV2(
 							queryName,
@@ -267,6 +269,12 @@ public class Benchmark {
 			JobBenchmarkMetric metric = runner.run();
 			totalMetrics.put(queryName, metric);
 		}
+	}
+
+	private static Duration getEffectiveMonitorDuration(Workload workload, Duration configuredMonitorDuration) {
+		// Bounded event-count queries should always be monitored until they finish.
+		// The configured monitor duration only applies to TPS-mode replay jobs.
+		return workload.getEventsNum() == 0 ? configuredMonitorDuration : Duration.ofNanos(Long.MAX_VALUE);
 	}
 
 	public static void printSummary(LinkedHashMap<String, JobBenchmarkMetric> totalMetrics) {

@@ -26,6 +26,8 @@ nexmark.workload.suite.kafka-preload.queries: "insert_kafka_unique"
 # Benchmark workload configuration (Kafka replay via TPS mode)
 #==============================================================================
 
+# Applies to TPS-mode replay queries. Bounded preload queries ignore this and
+# monitor until the job finishes.
 nexmark.metric.monitor.duration: 60min
 nexmark.workload.suite.kafka-replay.warmup.duration: 30s
 nexmark.workload.suite.kafka-replay.percentage: "person:2,auction:6,bid:92"

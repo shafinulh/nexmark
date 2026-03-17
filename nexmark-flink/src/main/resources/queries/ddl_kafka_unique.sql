@@ -7,20 +7,21 @@ CREATE TABLE person_kafka (
     state VARCHAR,
     `dateTime` TIMESTAMP(3),
     extra VARCHAR,
-    WATERMARK FOR `dateTime` AS `dateTime` - INTERVAL '4' SECOND
+    WATERMARK FOR `dateTime` AS `dateTime` - INTERVAL '4' SECOND,
+    PRIMARY KEY (id) NOT ENFORCED
 ) WITH (
-    'connector' = 'kafka',
+    'connector' = 'upsert-kafka',
     'topic' = 'nexmark-person',
     'properties.bootstrap.servers' = '${BOOTSTRAP_SERVERS}',
     'properties.group.id' = 'nexmark',
-    'scan.startup.mode' = 'earliest-offset',
     'scan.watermark.emit.strategy' = 'on-event',
     'scan.watermark.idle-timeout' = '30s',
     'scan.watermark.alignment.group' = 'nexmark-events',
     'scan.watermark.alignment.max-drift' = '1s',
     'scan.watermark.alignment.update-interval' = '200ms',
-    'sink.partitioner' = 'round-robin',
-    'format' = 'json'
+    'key.format' = 'json',
+    'value.format' = 'json',
+    'value.fields-include' = 'EXCEPT_KEY'
 );
 
 CREATE TABLE auction_kafka (
@@ -34,20 +35,21 @@ CREATE TABLE auction_kafka (
     seller BIGINT,
     category BIGINT,
     extra VARCHAR,
-    WATERMARK FOR `dateTime` AS `dateTime` - INTERVAL '4' SECOND
+    WATERMARK FOR `dateTime` AS `dateTime` - INTERVAL '4' SECOND,
+    PRIMARY KEY (id) NOT ENFORCED
 ) WITH (
-    'connector' = 'kafka',
+    'connector' = 'upsert-kafka',
     'topic' = 'nexmark-auction',
     'properties.bootstrap.servers' = '${BOOTSTRAP_SERVERS}',
     'properties.group.id' = 'nexmark',
-    'scan.startup.mode' = 'earliest-offset',
     'scan.watermark.emit.strategy' = 'on-event',
     'scan.watermark.idle-timeout' = '30s',
     'scan.watermark.alignment.group' = 'nexmark-events',
     'scan.watermark.alignment.max-drift' = '1s',
     'scan.watermark.alignment.update-interval' = '200ms',
-    'sink.partitioner' = 'round-robin',
-    'format' = 'json'
+    'key.format' = 'json',
+    'value.format' = 'json',
+    'value.fields-include' = 'EXCEPT_KEY'
 );
 
 CREATE TABLE bid_kafka (
@@ -59,18 +61,19 @@ CREATE TABLE bid_kafka (
     url VARCHAR,
     `dateTime` TIMESTAMP(3),
     extra VARCHAR,
-    WATERMARK FOR `dateTime` AS `dateTime` - INTERVAL '4' SECOND
+    WATERMARK FOR `dateTime` AS `dateTime` - INTERVAL '4' SECOND,
+    PRIMARY KEY (auction, bidder, price, `dateTime`) NOT ENFORCED
 ) WITH (
-    'connector' = 'kafka',
+    'connector' = 'upsert-kafka',
     'topic' = 'nexmark-bid',
     'properties.bootstrap.servers' = '${BOOTSTRAP_SERVERS}',
     'properties.group.id' = 'nexmark',
-    'scan.startup.mode' = 'earliest-offset',
     'scan.watermark.emit.strategy' = 'on-event',
     'scan.watermark.idle-timeout' = '30s',
     'scan.watermark.alignment.group' = 'nexmark-events',
     'scan.watermark.alignment.max-drift' = '1s',
     'scan.watermark.alignment.update-interval' = '200ms',
-    'sink.partitioner' = 'round-robin',
-    'format' = 'json'
+    'key.format' = 'json',
+    'value.format' = 'json',
+    'value.fields-include' = 'EXCEPT_KEY'
 );
