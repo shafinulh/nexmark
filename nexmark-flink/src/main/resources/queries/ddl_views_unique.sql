@@ -8,7 +8,7 @@ SELECT
     state,
     `dateTime`,
     extra
-FROM person_src;
+FROM ${PERSON_TABLE};
 
 CREATE VIEW auction AS
 SELECT
@@ -22,7 +22,7 @@ SELECT
     seller,
     category,
     extra
-FROM auction_src;
+FROM ${AUCTION_TABLE};
 
 CREATE VIEW bid AS
 SELECT
@@ -33,7 +33,7 @@ SELECT
     url,
     `dateTime`,
     extra
-FROM bid_src;
+FROM ${BID_TABLE};
 
 CREATE VIEW bid_modified AS
 SELECT
@@ -45,4 +45,4 @@ SELECT
     url,
     `dateTime`,
     extra
-FROM bid_modified_src;
+FROM ${BID_MODIFIED_TABLE};

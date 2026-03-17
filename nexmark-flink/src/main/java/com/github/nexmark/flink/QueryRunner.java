@@ -72,7 +72,7 @@ public class QueryRunner {
 			System.out.println("Start to run query " + queryName + " with workload " + workload.getSummaryString());
 			LOG.info("==================================================================");
 			LOG.info("Start to run query " + queryName + " with workload " + workload.getSummaryString());
-			if (!"insert_kafka".equals(queryName) // no warmup for kafka source prepare
+			if (!isKafkaPrepareQuery() // no warmup for kafka source prepare
 					&& (workload.getWarmupMills() > 0L || workload.getKafkaServers() == null)  // when using kafka source we need a stop for warmup
 					&& ((workload.getWarmupTps() > 0L && workload.getWarmupEvents() > 0L) || workload.getKafkaServers() != null) // otherwise we need a configuration for datagen source
 			) {
@@ -158,15 +158,20 @@ public class QueryRunner {
 		varsMap.put("PERSON_PROPORTION", String.valueOf(workload.getPersonProportion()));
 		varsMap.put("AUCTION_PROPORTION", String.valueOf(workload.getAuctionProportion()));
 		varsMap.put("BID_PROPORTION", String.valueOf(workload.getBidProportion()));
-		varsMap.put("NEXMARK_TABLE", workload.getKafkaServers() == null ? "datagen" : "kafka");
+		varsMap.put("NEXMARK_TABLE", shouldReadSharedKafkaTable() ? "kafka" : "datagen");
+		varsMap.put("PERSON_TABLE", shouldReadUniqueKafkaTables() ? "person_kafka" : "person_src");
+		varsMap.put("AUCTION_TABLE", shouldReadUniqueKafkaTables() ? "auction_kafka" : "auction_src");
+		varsMap.put("BID_TABLE", shouldReadUniqueKafkaTables() ? "bid_kafka" : "bid_src");
+		varsMap.put("BID_MODIFIED_TABLE", shouldReadUniqueKafkaTables() ? "bid_kafka" : "bid_modified_src");
 		varsMap.put("BOOTSTRAP_SERVERS", workload.getKafkaServers() == null ? "" : workload.getKafkaServers());
+		varsMap.put("MAX_EMIT_SPEED", isKafkaPrepareQuery() ? "false" : "true");
 		return varsMap;
 	}
 
 	private List<String> initializeAllSqlLines(Map<String, String> vars) throws IOException {
 		List<String> allLines = new ArrayList<>();
 		allLines.addAll(initializeSqlFileLines(vars, new File(queryLocation.toFile(), getDatagenDdlFile())));
-		allLines.addAll(initializeSqlFileLines(vars, new File(queryLocation.toFile(), "ddl_kafka.sql")));
+		allLines.addAll(initializeSqlFileLines(vars, new File(queryLocation.toFile(), getKafkaDdlFile())));
 		allLines.addAll(initializeSqlFileLines(vars, new File(queryLocation.toFile(), getViewsDdlFile())));
 		allLines.addAll(initializeSqlFileLines(vars, new File(queryLocation.toFile(), queryName + ".sql")));
 		return allLines;
@@ -180,8 +185,24 @@ public class QueryRunner {
 		return isUniqueQuery() ? "ddl_views_unique.sql" : "ddl_views.sql";
 	}
 
+	private String getKafkaDdlFile() {
+		return isUniqueQuery() ? "ddl_kafka_unique.sql" : "ddl_kafka.sql";
+	}
+
 	private boolean isUniqueQuery() {
 		return queryName.endsWith("_unique");
+	}
+
+	private boolean isKafkaPrepareQuery() {
+		return queryName.startsWith("insert_kafka");
+	}
+
+	private boolean shouldReadSharedKafkaTable() {
+		return workload.getKafkaServers() != null && !isKafkaPrepareQuery();
+	}
+
+	private boolean shouldReadUniqueKafkaTables() {
+		return isUniqueQuery() && workload.getKafkaServers() != null && !isKafkaPrepareQuery();
 	}
 
 	private List<String> initializeSqlFileLines(Map<String, String> vars, File sqlFile) throws IOException {

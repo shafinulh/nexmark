@@ -42,5 +42,6 @@ CREATE TABLE datagen (
     'events.num' = '${EVENTS_NUM}',
     'person.proportion' = '${PERSON_PROPORTION}',
     'auction.proportion' = '${AUCTION_PROPORTION}',
-    'bid.proportion' = '${BID_PROPORTION}'
+    'bid.proportion' = '${BID_PROPORTION}',
+    'max-emit-speed' = '${MAX_EMIT_SPEED}'
 );

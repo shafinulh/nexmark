@@ -18,7 +18,8 @@ CREATE TABLE person_src (
     'events.num' = '${EVENTS_NUM}',
     'person.proportion' = '${PERSON_PROPORTION}',
     'auction.proportion' = '${AUCTION_PROPORTION}',
-    'bid.proportion' = '${BID_PROPORTION}'
+    'bid.proportion' = '${BID_PROPORTION}',
+    'max-emit-speed' = '${MAX_EMIT_SPEED}'
 );
 
 CREATE TABLE auction_src (
@@ -43,7 +44,8 @@ CREATE TABLE auction_src (
     'events.num' = '${EVENTS_NUM}',
     'person.proportion' = '${PERSON_PROPORTION}',
     'auction.proportion' = '${AUCTION_PROPORTION}',
-    'bid.proportion' = '${BID_PROPORTION}'
+    'bid.proportion' = '${BID_PROPORTION}',
+    'max-emit-speed' = '${MAX_EMIT_SPEED}'
 );
 
 CREATE TABLE bid_src (
@@ -66,7 +68,8 @@ CREATE TABLE bid_src (
     'events.num' = '${EVENTS_NUM}',
     'person.proportion' = '${PERSON_PROPORTION}',
     'auction.proportion' = '${AUCTION_PROPORTION}',
-    'bid.proportion' = '${BID_PROPORTION}'
+    'bid.proportion' = '${BID_PROPORTION}',
+    'max-emit-speed' = '${MAX_EMIT_SPEED}'
 );
 
 CREATE TABLE bid_modified_src (
@@ -89,5 +92,6 @@ CREATE TABLE bid_modified_src (
     'events.num' = '${EVENTS_NUM}',
     'person.proportion' = '${PERSON_PROPORTION}',
     'auction.proportion' = '${AUCTION_PROPORTION}',
-    'bid.proportion' = '${BID_PROPORTION}'
+    'bid.proportion' = '${BID_PROPORTION}',
+    'max-emit-speed' = '${MAX_EMIT_SPEED}'
 );
