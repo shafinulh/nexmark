@@ -174,6 +174,38 @@ public class NexmarkSourceOptions {
 			.booleanType()
 			.defaultValue(true);
 
+	/**
+	 * @see NexmarkConfiguration#occasionalDelayMinSec
+	 */
+	public static final ConfigOption<Long> OCCASIONAL_DELAY_MIN_SEC = ConfigOptions
+			.key("occasional-delay.min-sec")
+			.longType()
+			.defaultValue(60L);
+
+	/**
+	 * @see NexmarkConfiguration#occasionalDelaySec
+	 */
+	public static final ConfigOption<Long> OCCASIONAL_DELAY_SEC = ConfigOptions
+			.key("occasional-delay.sec")
+			.longType()
+			.defaultValue(240L);
+
+	/**
+	 * @see NexmarkConfiguration#probDelayedEvent
+	 */
+	public static final ConfigOption<Double> PROB_DELAYED_EVENT = ConfigOptions
+			.key("prob-delayed-event")
+			.doubleType()
+			.defaultValue(0.0);
+
+	/**
+	 * @see NexmarkConfiguration#outOfOrderGroupSize
+	 */
+	public static final ConfigOption<Long> OUT_OF_ORDER_GROUP_SIZE = ConfigOptions
+			.key("out-of-order-group-size")
+			.longType()
+			.defaultValue(1L);
+
 	public static NexmarkConfiguration convertToNexmarkConfiguration(ReadableConfig config) {
 		NexmarkConfiguration nexmarkConf = new NexmarkConfiguration();
 		nexmarkConf.rateShape = config.get(RATE_SHAPE);
@@ -194,6 +226,10 @@ public class NexmarkSourceOptions {
 		nexmarkConf.isSourceKeepAlive = config.get(KEEP_ALIVE);
 		nexmarkConf.stopAtEvent = config.get(STOP_AT);
 		nexmarkConf.maxEmitSpeed = config.get(MAX_EMIT_SPEED);
+		nexmarkConf.occasionalDelayMinSec = config.get(OCCASIONAL_DELAY_MIN_SEC);
+		nexmarkConf.occasionalDelaySec = config.get(OCCASIONAL_DELAY_SEC);
+		nexmarkConf.probDelayedEvent = config.get(PROB_DELAYED_EVENT);
+		nexmarkConf.outOfOrderGroupSize = config.get(OUT_OF_ORDER_GROUP_SIZE);
 
 		return nexmarkConf;
 	}

@@ -244,6 +244,33 @@ public class SqlQueryJob {
 						.build());
 		options.addOption(
 				Option.builder()
+						.longOpt("occasional-delay-min-sec")
+						.hasArg()
+						.desc(
+								"Minimum occasional delay to impose on events, in seconds. Defaults to 60.")
+						.build());
+		options.addOption(
+				Option.builder()
+						.longOpt("occasional-delay-sec")
+						.hasArg()
+						.desc(
+								"Maximum occasional delay to impose on events, in seconds. Defaults to 240.")
+						.build());
+		options.addOption(
+				Option.builder()
+						.longOpt("prob-delayed-event")
+						.hasArg()
+						.desc("Probability that an event will be delayed. Defaults to 0.")
+						.build());
+		options.addOption(
+				Option.builder()
+						.longOpt("out-of-order-group-size")
+						.hasArg()
+						.desc(
+								"Number of events in out-of-order groups. 1 means no out-of-order events. Defaults to 1.")
+						.build());
+		options.addOption(
+				Option.builder()
 						.longOpt("print-script")
 						.desc("Log the expanded SQL script before execution.")
 						.build());
@@ -277,6 +304,10 @@ public class SqlQueryJob {
 		private final boolean keepAlive;
 		private final long stopAt;
 		private final boolean maxEmitSpeed;
+		private final long occasionalDelayMinSec;
+		private final long occasionalDelaySec;
+		private final double probDelayedEvent;
+		private final long outOfOrderGroupSize;
 		private final String jobName;
 		private final String savepointPath;
 		private final boolean printScript;
@@ -293,6 +324,10 @@ public class SqlQueryJob {
 				boolean keepAlive,
 				long stopAt,
 				boolean maxEmitSpeed,
+				long occasionalDelayMinSec,
+				long occasionalDelaySec,
+				double probDelayedEvent,
+				long outOfOrderGroupSize,
 				String jobName,
 				String savepointPath,
 				boolean printScript) {
@@ -307,6 +342,10 @@ public class SqlQueryJob {
 			this.keepAlive = keepAlive;
 			this.stopAt = stopAt;
 			this.maxEmitSpeed = maxEmitSpeed;
+			this.occasionalDelayMinSec = occasionalDelayMinSec;
+			this.occasionalDelaySec = occasionalDelaySec;
+			this.probDelayedEvent = probDelayedEvent;
+			this.outOfOrderGroupSize = outOfOrderGroupSize;
 			this.jobName = jobName;
 			this.savepointPath = savepointPath;
 			this.printScript = printScript;
@@ -337,6 +376,13 @@ public class SqlQueryJob {
 					Boolean.parseBoolean(commandLine.getOptionValue("keep-alive", "false")),
 					Long.parseLong(commandLine.getOptionValue("stop-at", "-1")),
 					Boolean.parseBoolean(commandLine.getOptionValue("max-emit-speed", "true")),
+					Long.parseLong(
+							commandLine.getOptionValue("occasional-delay-min-sec", "60")),
+					Long.parseLong(commandLine.getOptionValue("occasional-delay-sec", "240")),
+					Double.parseDouble(
+							commandLine.getOptionValue("prob-delayed-event", "0")),
+					Long.parseLong(
+							commandLine.getOptionValue("out-of-order-group-size", "1")),
 					commandLine.getOptionValue("job-name"),
 					commandLine.getOptionValue("savepoint"),
 					commandLine.hasOption("print-script"));
@@ -357,6 +403,11 @@ public class SqlQueryJob {
 			variables.put("KEEP_ALIVE", String.valueOf(keepAlive));
 			variables.put("STOP_AT", String.valueOf(stopAt));
 			variables.put("MAX_EMIT_SPEED", String.valueOf(maxEmitSpeed));
+			variables.put(
+					"OCCASIONAL_DELAY_MIN_SEC", String.valueOf(occasionalDelayMinSec));
+			variables.put("OCCASIONAL_DELAY_SEC", String.valueOf(occasionalDelaySec));
+			variables.put("PROB_DELAYED_EVENT", String.valueOf(probDelayedEvent));
+			variables.put("OUT_OF_ORDER_GROUP_SIZE", String.valueOf(outOfOrderGroupSize));
 			variables.put(
 					"BOOTSTRAP_SERVERS",
 					bootstrapServers == null ? "" : bootstrapServers.trim());

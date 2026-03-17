@@ -87,6 +87,10 @@ public class NexmarkTableSourceFactory implements DynamicTableSourceFactory {
 		sets.add(NexmarkSourceOptions.KEEP_ALIVE);
 		sets.add(NexmarkSourceOptions.STOP_AT);
 		sets.add(NexmarkSourceOptions.MAX_EMIT_SPEED);
+		sets.add(NexmarkSourceOptions.OCCASIONAL_DELAY_MIN_SEC);
+		sets.add(NexmarkSourceOptions.OCCASIONAL_DELAY_SEC);
+		sets.add(NexmarkSourceOptions.PROB_DELAYED_EVENT);
+		sets.add(NexmarkSourceOptions.OUT_OF_ORDER_GROUP_SIZE);
 		return sets;
 	}
 }
