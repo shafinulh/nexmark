@@ -1,0 +1,4 @@
+[submodule "flink-connector-kafka-3.3.0"]
+	path = flink-connector-kafka-3.3.0
+	url = git@github.com:shafinulh/flink-connector-kafka.git
+	branch = unique-upsert-source
