@@ -159,6 +159,39 @@ public class FlinkRestClient {
 		}
 	}
 
+	/**
+	 * Returns the total write-records (records sent/emitted) summed across all source vertices
+	 * for a running job. Returns -1 if the job is not in RUNNING state or has no vertices.
+	 * Source vertices are identified by names starting with "Source:".
+	 *
+	 * Note: source vertices have read-records=0 (no upstream), so we use write-records.
+	 */
+	public synchronized long getTotalSourceReadRecords(String jobId) {
+		String url = String.format("http://%s/jobs/%s", jmEndpoint, jobId);
+		String response = executeAsString(url);
+		try {
+			JsonNode jsonNode = NexmarkUtils.MAPPER.readTree(response);
+			String state = jsonNode.get("state").asText();
+			if (!state.equalsIgnoreCase("RUNNING")) {
+				return -1L;
+			}
+			JsonNode vertices = jsonNode.get("vertices");
+			if (vertices.isEmpty()) {
+				return -1L;
+			}
+			long totalRecords = 0;
+			for (JsonNode vertex : vertices) {
+				String name = vertex.get("name").asText();
+				if (name.startsWith("Source:")) {
+					totalRecords += vertex.get("metrics").get("write-records").asLong();
+				}
+			}
+			return totalRecords;
+		} catch (JsonProcessingException e) {
+			throw new RuntimeException("The response is not a valid JSON string:\n" + response, e);
+		}
+	}
+
 	public synchronized boolean isJobAndAllTasksRunning(String jobId) {
 		String url = String.format("http://%s/jobs/%s", jmEndpoint, jobId);
 		String response = executeAsString(url);
@@ -258,6 +291,57 @@ public class FlinkRestClient {
 		} catch (Throwable e) {
 			throw new RuntimeException("The response is not a valid JSON string:\n" + response, e);
 		}
+	}
+
+	public Savepoint.Status checkSavepointFinished(String jobId, String triggerId) {
+		String url = String.format("http://%s/jobs/%s/savepoints/%s", jmEndpoint, jobId, triggerId);
+		try {
+			String response = executeAsString(url);
+			JsonNode jsonNode = NexmarkUtils.MAPPER.readTree(response);
+			String status = jsonNode.get("status").get("id").asText();
+			return Savepoint.Status.valueOf(status);
+		} catch (RuntimeException e) {
+			if (e.getMessage() != null && e.getMessage().contains("status code is 404")) {
+				return Savepoint.Status.IN_PROGRESS;
+			}
+			throw e;
+		} catch (Throwable e) {
+			throw new RuntimeException("Failed to check savepoint status for job " + jobId, e);
+		}
+	}
+
+	public String getSavepointLocation(String jobId, String triggerId) {
+		String url = String.format("http://%s/jobs/%s/savepoints/%s", jmEndpoint, jobId, triggerId);
+		try {
+			String response = executeAsString(url);
+			JsonNode jsonNode = NexmarkUtils.MAPPER.readTree(response);
+			return parseSavepointLocation(jsonNode);
+		} catch (RuntimeException e) {
+			if (e.getMessage() != null && e.getMessage().contains("status code is 404")) {
+				return null;
+			}
+			throw e;
+		} catch (Throwable e) {
+			throw new RuntimeException("Failed to parse savepoint location for job " + jobId, e);
+		}
+	}
+
+	private String parseSavepointLocation(JsonNode jsonNode) {
+		if (jsonNode == null || jsonNode.isNull()) {
+			return null;
+		}
+		JsonNode operation = jsonNode.get("operation");
+		if (operation != null && operation.has("location")) {
+			return operation.get("location").asText();
+		}
+		if (jsonNode.has("location")) {
+			return jsonNode.get("location").asText();
+		}
+		JsonNode savepoint = jsonNode.get("savepoint");
+		if (savepoint != null && savepoint.has("location")) {
+			return savepoint.get("location").asText();
+		}
+		return null;
 	}
 
 	public Savepoint getJobLastCheckpoint(String jobId) {
