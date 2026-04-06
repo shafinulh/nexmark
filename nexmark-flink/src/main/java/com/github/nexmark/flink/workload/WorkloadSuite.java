@@ -119,6 +119,16 @@ public class WorkloadSuite {
 				}
 			}
 
+			personProportion = Integer.parseInt(removeQuotes(confMap.getOrDefault(
+					WORKLOAD_SUITE_CONF_PREFIX + suiteName + "." + NexmarkSourceOptions.PERSON_PROPORTION.key(),
+					String.valueOf(personProportion))));
+			auctionProportion = Integer.parseInt(removeQuotes(confMap.getOrDefault(
+					WORKLOAD_SUITE_CONF_PREFIX + suiteName + "." + NexmarkSourceOptions.AUCTION_PROPORTION.key(),
+					String.valueOf(auctionProportion))));
+			bidProportion = Integer.parseInt(removeQuotes(confMap.getOrDefault(
+					WORKLOAD_SUITE_CONF_PREFIX + suiteName + "." + NexmarkSourceOptions.BID_PROPORTION.key(),
+					String.valueOf(bidProportion))));
+
 			Duration warmupDuration = TimeUtils.parseDuration(confMap.getOrDefault(
 					WORKLOAD_SUITE_CONF_PREFIX + suiteName + WARMUP_DURATION_SUFFIX,
 					"120s"));
@@ -131,8 +141,29 @@ public class WorkloadSuite {
 					WORKLOAD_SUITE_CONF_PREFIX + suiteName + WARMUP_SUFFIX + EVENTS_NUM_CONF_SUFFIX,
 					String.valueOf(eventsNum)));
 
+			double probDelayedEvent = Double.parseDouble(confMap.getOrDefault(
+					WORKLOAD_SUITE_CONF_PREFIX + suiteName + "." + NexmarkSourceOptions.PROB_DELAYED_EVENT.key(),
+					NexmarkSourceOptions.PROB_DELAYED_EVENT.defaultValue().toString()));
+
+			long occasionalDelayMinSec = Long.parseLong(confMap.getOrDefault(
+					WORKLOAD_SUITE_CONF_PREFIX + suiteName + "." + NexmarkSourceOptions.OCCASIONAL_DELAY_MIN_SEC.key(),
+					NexmarkSourceOptions.OCCASIONAL_DELAY_MIN_SEC.defaultValue().toString()));
+
+			long occasionalDelaySec = Long.parseLong(confMap.getOrDefault(
+					WORKLOAD_SUITE_CONF_PREFIX + suiteName + "." + NexmarkSourceOptions.OCCASIONAL_DELAY_SEC.key(),
+					NexmarkSourceOptions.OCCASIONAL_DELAY_SEC.defaultValue().toString()));
+
+			long outOfOrderGroupSize = Long.parseLong(confMap.getOrDefault(
+					WORKLOAD_SUITE_CONF_PREFIX + suiteName + "." + NexmarkSourceOptions.OUT_OF_ORDER_GROUP_SIZE.key(),
+					NexmarkSourceOptions.OUT_OF_ORDER_GROUP_SIZE.defaultValue().toString()));
+
+			int numInFlightAuctions = Integer.parseInt(removeQuotes(confMap.getOrDefault(
+					WORKLOAD_SUITE_CONF_PREFIX + suiteName + "." + NexmarkSourceOptions.NUM_IN_FLIGHT_AUCTIONS.key(),
+					NexmarkSourceOptions.NUM_IN_FLIGHT_AUCTIONS.defaultValue().toString())));
+
 			Workload load = new Workload(
-					tps, eventsNum, personProportion, auctionProportion, bidProportion, kafkaServers, warmupDuration.toMillis(), warmupTps, warmupEventsNum);
+					tps, eventsNum, personProportion, auctionProportion, bidProportion, kafkaServers, warmupDuration.toMillis(), warmupTps, warmupEventsNum,
+					probDelayedEvent, occasionalDelayMinSec, occasionalDelaySec, outOfOrderGroupSize, numInFlightAuctions);
 
 			String queriesKey = WORKLOAD_SUITE_CONF_PREFIX + suiteName + categoryQueries;
 			List<String> queries = new ArrayList<>();

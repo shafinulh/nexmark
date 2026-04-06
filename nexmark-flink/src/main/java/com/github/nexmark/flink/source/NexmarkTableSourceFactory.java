@@ -96,6 +96,11 @@ public class NexmarkTableSourceFactory implements DynamicTableSourceFactory {
 		sets.add(NexmarkSourceOptions.MAX_EMIT_SPEED);
 		sets.add(NexmarkSourceOptions.EVENT_TYPE);
 		sets.add(NexmarkSourceOptions.BASE_TIME);
+		sets.add(NexmarkSourceOptions.OCCASIONAL_DELAY_MIN_SEC);
+		sets.add(NexmarkSourceOptions.OCCASIONAL_DELAY_SEC);
+		sets.add(NexmarkSourceOptions.PROB_DELAYED_EVENT);
+		sets.add(NexmarkSourceOptions.OUT_OF_ORDER_GROUP_SIZE);
+		sets.add(NexmarkSourceOptions.NUM_IN_FLIGHT_AUCTIONS);
 		return sets;
 	}
 }

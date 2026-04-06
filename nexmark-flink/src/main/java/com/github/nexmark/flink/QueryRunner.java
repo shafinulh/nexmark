@@ -165,6 +165,11 @@ public class QueryRunner {
 		varsMap.put("BID_MODIFIED_TABLE", shouldReadUniqueKafkaTables() ? "bid_kafka" : "bid_modified_src");
 		varsMap.put("BOOTSTRAP_SERVERS", workload.getKafkaServers() == null ? "" : workload.getKafkaServers());
 		varsMap.put("MAX_EMIT_SPEED", isKafkaPrepareQuery() ? "false" : "true");
+		varsMap.put("OCCASIONAL_DELAY_MIN_SEC", String.valueOf(workload.getOccasionalDelayMinSec()));
+		varsMap.put("OCCASIONAL_DELAY_SEC", String.valueOf(workload.getOccasionalDelaySec()));
+		varsMap.put("PROB_DELAYED_EVENT", String.valueOf(workload.getProbDelayedEvent()));
+		varsMap.put("OUT_OF_ORDER_GROUP_SIZE", String.valueOf(workload.getOutOfOrderGroupSize()));
+		varsMap.put("NUM_IN_FLIGHT_AUCTIONS", String.valueOf(workload.getNumInFlightAuctions()));
 		return varsMap;
 	}
 

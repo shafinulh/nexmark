@@ -94,12 +94,18 @@ public class FlinkRestClient {
 		try {
 			JsonNode jsonNode = NexmarkUtils.MAPPER.readTree(response);
 			JsonNode jobs = jsonNode.get("jobs");
+			Map<String, String> latestStatuses = new ConcurrentHashMap<>(50);
+			String latestJobId = "";
 			for (JsonNode job : jobs) {
 				String id = job.get("id").asText();
-				if (jobIds.put(id, job.get("status").asText()) == null) {
-					lastJobId = id;
+				latestStatuses.put(id, job.get("status").asText());
+				if (latestJobId.isEmpty()) {
+					latestJobId = id;
 				}
 			}
+			jobIds.clear();
+			jobIds.putAll(latestStatuses);
+			lastJobId = latestJobId;
 		} catch (JsonProcessingException e) {
 			throw new RuntimeException("The response is not a valid JSON string:\n" + response, e);
 		}
@@ -221,16 +227,23 @@ public class FlinkRestClient {
 
 	public boolean isJobRunning(String jobId) {
 		updateAllJobStatus();
-		return !isNullOrEmpty(jobId) && jobIds.get(jobId).equalsIgnoreCase("RUNNING");
+		String status = isNullOrEmpty(jobId) ? null : jobIds.get(jobId);
+		return status != null && status.equalsIgnoreCase("RUNNING");
 	}
 
 	public boolean isJobCanceledOrFinished(String jobId) {
 		updateAllJobStatus();
-		if (!isNullOrEmpty(jobId)) {
-			String status = jobIds.get(jobId);
-			return status.equalsIgnoreCase("CANCELED") || status.equalsIgnoreCase("FINISHED");
+		if (isNullOrEmpty(jobId)) {
+			return true;
 		}
-		return true;
+		String status = jobIds.get(jobId);
+		if (status == null) {
+			// /jobs no longer reports this job, which is terminal for our polling loop.
+			return true;
+		}
+		return status.equalsIgnoreCase("CANCELED")
+			|| status.equalsIgnoreCase("FINISHED")
+			|| status.equalsIgnoreCase("FAILED");
 	}
 
 	private static boolean isNullOrEmpty(String string) {

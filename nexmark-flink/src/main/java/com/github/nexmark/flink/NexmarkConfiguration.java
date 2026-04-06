@@ -123,11 +123,14 @@ public class NexmarkConfiguration implements Serializable {
 	/** Maximum number of people to consider as active for placing auctions or bids. */
 	@JsonProperty public int numActivePeople = 1000;
 
-	/** Length of occasional delay to impose on events (in seconds). */
-	@JsonProperty public long occasionalDelaySec = 3;
+	/** Minimum length of occasional delay to impose on events (in seconds). */
+	@JsonProperty public long occasionalDelayMinSec = 60;
+
+	/** Maximum length of occasional delay to impose on events (in seconds). */
+	@JsonProperty public long occasionalDelaySec = 240;
 
 	/** Probability that an event will be delayed by delayS. */
-	@JsonProperty public double probDelayedEvent = 0.1;
+	@JsonProperty public double probDelayedEvent = 0;
 
 	/**
 	 * Number of events in out-of-order groups. 1 implies no out-of-order events. 1000 implies every
@@ -189,6 +192,7 @@ public class NexmarkConfiguration implements Serializable {
 			watermarkHoldbackSec == that.watermarkHoldbackSec &&
 			numInFlightAuctions == that.numInFlightAuctions &&
 			numActivePeople == that.numActivePeople &&
+			occasionalDelayMinSec == that.occasionalDelayMinSec &&
 			occasionalDelaySec == that.occasionalDelaySec &&
 			Double.compare(that.probDelayedEvent, probDelayedEvent) == 0 &&
 			outOfOrderGroupSize == that.outOfOrderGroupSize &&
@@ -227,6 +231,7 @@ public class NexmarkConfiguration implements Serializable {
 			watermarkHoldbackSec,
 			numInFlightAuctions,
 			numActivePeople,
+			occasionalDelayMinSec,
 			occasionalDelaySec,
 			probDelayedEvent,
 			outOfOrderGroupSize,

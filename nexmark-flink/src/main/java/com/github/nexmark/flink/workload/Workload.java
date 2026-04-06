@@ -39,9 +39,14 @@ public class Workload {
 	private final long warmupMills;
 	private final long warmupTps;
 	private final long warmupEvents;
+	private final double probDelayedEvent;
+	private final long occasionalDelayMinSec;
+	private final long occasionalDelaySec;
+	private final long outOfOrderGroupSize;
+	private final int numInFlightAuctions;
 
 	public Workload(long tps, long eventsNum, int personProportion, int auctionProportion, int bidProportion) {
-		this(tps, eventsNum, personProportion, auctionProportion, bidProportion, null, 0L, 0L, 0L);
+		this(tps, eventsNum, personProportion, auctionProportion, bidProportion, null, 0L, 0L, 0L, 0.0, 60L, 240L, 1L, 100);
 	}
 
 	public Workload(
@@ -54,6 +59,24 @@ public class Workload {
 			long warmupMills,
 			long warmupTps,
 			long warmupEvents) {
+		this(tps, eventsNum, personProportion, auctionProportion, bidProportion, kafkaServers, warmupMills, warmupTps, warmupEvents, 0.0, 60L, 240L, 1L, 100);
+	}
+
+	public Workload(
+			long tps,
+			long eventsNum,
+			int personProportion,
+			int auctionProportion,
+			int bidProportion,
+			@Nullable String kafkaServers,
+			long warmupMills,
+			long warmupTps,
+			long warmupEvents,
+			double probDelayedEvent,
+			long occasionalDelayMinSec,
+			long occasionalDelaySec,
+			long outOfOrderGroupSize,
+			int numInFlightAuctions) {
 		this.tps = tps;
 		this.eventsNum = eventsNum;
 		this.personProportion = personProportion;
@@ -63,6 +86,11 @@ public class Workload {
 		this.warmupMills = warmupMills;
 		this.warmupTps = warmupTps;
 		this.warmupEvents = warmupEvents;
+		this.probDelayedEvent = probDelayedEvent;
+		this.occasionalDelayMinSec = occasionalDelayMinSec;
+		this.occasionalDelaySec = occasionalDelaySec;
+		this.outOfOrderGroupSize = outOfOrderGroupSize;
+		this.numInFlightAuctions = numInFlightAuctions;
 	}
 
 	public long getTps() {
@@ -99,6 +127,26 @@ public class Workload {
 
 	public long getWarmupEvents() {
 		return warmupEvents;
+	}
+
+	public double getProbDelayedEvent() {
+		return probDelayedEvent;
+	}
+
+	public long getOccasionalDelayMinSec() {
+		return occasionalDelayMinSec;
+	}
+
+	public long getOccasionalDelaySec() {
+		return occasionalDelaySec;
+	}
+
+	public long getOutOfOrderGroupSize() {
+		return outOfOrderGroupSize;
+	}
+
+	public int getNumInFlightAuctions() {
+		return numInFlightAuctions;
 	}
 
 	public void validateWorkload(Duration monitorDuration) {

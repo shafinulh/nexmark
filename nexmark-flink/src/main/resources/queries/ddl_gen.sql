@@ -43,5 +43,10 @@ CREATE TABLE datagen (
     'person.proportion' = '${PERSON_PROPORTION}',
     'auction.proportion' = '${AUCTION_PROPORTION}',
     'bid.proportion' = '${BID_PROPORTION}',
-    'max-emit-speed' = '${MAX_EMIT_SPEED}'
+    'max-emit-speed' = '${MAX_EMIT_SPEED}',
+    'occasional-delay.min-sec' = '${OCCASIONAL_DELAY_MIN_SEC}',
+    'occasional-delay.sec' = '${OCCASIONAL_DELAY_SEC}',
+    'prob-delayed-event' = '${PROB_DELAYED_EVENT}',
+    'out-of-order-group-size' = '${OUT_OF_ORDER_GROUP_SIZE}',
+    'num-in-flight-auctions' = '${NUM_IN_FLIGHT_AUCTIONS}'
 );

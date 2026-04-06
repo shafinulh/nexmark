@@ -30,10 +30,18 @@ nexmark.metric.reporter.port: 9098
 #==============================================================================
 
 nexmark.workload.suite.tp-200m.events.num: 12500000
-nexmark.workload.suite.tp-200m.tps: 100000
-nexmark.workload.suite.tp-200m.queries: "q0,q1,q2,q3,q4,q5,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q20_unique,q20_unique_modified,q21,q22"
+nexmark.workload.suite.tp-200m.tps: 50000
+nexmark.workload.suite.tp-200m.queries: "q0,q1,q2,q3,q4,q4_unique,q5,q7,q8,q9,q9_unique,q10,q11,q12,q13,q14,q15,q16,q17,q18,q18_unique,q19,q19_unique,q20,q20_unique,q20_unique_modified,q21,q22"
 nexmark.workload.suite.tp-200m.queries.cep: "q0,q1,q2,q3"
 nexmark.workload.suite.tp-200m.warmup.events.num: 50000000
+nexmark.workload.suite.tp-200m.person.proportion: 1
+nexmark.workload.suite.tp-200m.auction.proportion: 3
+nexmark.workload.suite.tp-200m.bid.proportion: 46
+nexmark.workload.suite.tp-200m.num-in-flight-auctions: 100
+nexmark.workload.suite.tp-200m.out-of-order-group-size: 1
+nexmark.workload.suite.tp-200m.prob-delayed-event: 0.0
+nexmark.workload.suite.tp-200m.occasional-delay.min-sec: 60
+nexmark.workload.suite.tp-200m.occasional-delay.sec: 240
 
 #==============================================================================
 # Benchmark workload configuration (tps, legacy mode)

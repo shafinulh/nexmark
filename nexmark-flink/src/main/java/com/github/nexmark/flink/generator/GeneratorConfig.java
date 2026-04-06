@@ -234,6 +234,10 @@ public class GeneratorConfig implements Serializable {
     return configuration.occasionalDelaySec;
   }
 
+  public long getOccasionalDelayMinSec() {
+    return configuration.occasionalDelayMinSec;
+  }
+
   /** Return an estimate of the byte-size of all events a generator for this config would yield. */
   public long getEstimatedSizeBytes() {
     return estimatedBytesForEvents(maxEvents);

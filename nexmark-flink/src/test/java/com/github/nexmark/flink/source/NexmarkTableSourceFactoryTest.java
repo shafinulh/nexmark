@@ -87,6 +87,7 @@ public class NexmarkTableSourceFactoryTest {
 		properties.put("bid.hot-ratio.bidders", "5");
 		properties.put("auction.hot-ratio.sellers", "8");
 		properties.put("events.num", "100");
+		properties.put("num-in-flight-auctions", "777");
 
 		DynamicTableSource actualSource = createTableSource(properties);
 		NexmarkConfiguration nexmarkConf = new NexmarkConfiguration();
@@ -105,6 +106,7 @@ public class NexmarkTableSourceFactoryTest {
 		nexmarkConf.hotBiddersRatio = 5;
 		nexmarkConf.hotSellersRatio = 8;
 		nexmarkConf.numEvents = 100;
+		nexmarkConf.numInFlightAuctions = 777;
 
 		GeneratorConfig config = new GeneratorConfig(
 			nexmarkConf,

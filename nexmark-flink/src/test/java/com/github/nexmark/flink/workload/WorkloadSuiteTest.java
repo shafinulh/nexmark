@@ -34,6 +34,8 @@ import java.util.Map;
 
 import static com.github.nexmark.flink.Benchmark.CATEGORY_OA;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 public class WorkloadSuiteTest {
 
@@ -105,52 +107,59 @@ public class WorkloadSuiteTest {
 	}
 
 	@Test
+	public void testDirectWorkloadKnobs() {
+		Configuration conf = new Configuration();
+		conf.setString("nexmark.workload.suite.custom.tps", "50000");
+		conf.setString("nexmark.workload.suite.custom.events.num", "7000000");
+		conf.setString("nexmark.workload.suite.custom.person.proportion", "2");
+		conf.setString("nexmark.workload.suite.custom.auction.proportion", "25");
+		conf.setString("nexmark.workload.suite.custom.bid.proportion", "73");
+		conf.setString("nexmark.workload.suite.custom.num-in-flight-auctions", "2000");
+		conf.setString("nexmark.workload.suite.custom.out-of-order-group-size", "1000");
+		conf.setString("nexmark.workload.suite.custom.prob-delayed-event", "0.1");
+		conf.setString("nexmark.workload.suite.custom.occasional-delay.min-sec", "60");
+		conf.setString("nexmark.workload.suite.custom.occasional-delay.sec", "240");
+		conf.setString("nexmark.workload.suite.custom.queries", "q20_unique");
+
+		Workload workload = WorkloadSuite.fromConf(conf, CATEGORY_OA).getQueryWorkload("q20_unique");
+
+		assertEquals(2, workload.getPersonProportion());
+		assertEquals(25, workload.getAuctionProportion());
+		assertEquals(73, workload.getBidProportion());
+		assertEquals(2000, workload.getNumInFlightAuctions());
+		assertEquals(1000L, workload.getOutOfOrderGroupSize());
+		assertEquals(0.1, workload.getProbDelayedEvent(), 0.0);
+	}
+
+	@Test
 	public void testDefaultConf() {
 		URL confDir = NexmarkGlobalConfigurationTest.class.getClassLoader().getResource("conf");
 		assert confDir != null;
 		Configuration conf = NexmarkGlobalConfiguration.loadConfiguration(confDir.getPath());
 
-		Workload load = new Workload(10000000, 100000000, 1, 3, 46);
+		WorkloadSuite oaSuite = WorkloadSuite.fromConf(conf, CATEGORY_OA);
+		WorkloadSuite cepSuite = WorkloadSuite.fromConf(conf, CATEGORY_CEP);
 
-		Map<String, Workload> query2Workload = new HashMap<>();
-		query2Workload.put("q0", load);
-		query2Workload.put("q1", load);
-		query2Workload.put("q2", load);
-		query2Workload.put("q3", load);
-		query2Workload.put("q4", load);
-		query2Workload.put("q5", load);
-		query2Workload.put("q7", load);
-		query2Workload.put("q8", load);
-		query2Workload.put("q9", load);
-		query2Workload.put("q10", load);
-		query2Workload.put("q11", load);
-		query2Workload.put("q12", load);
-		query2Workload.put("q13", load);
-		query2Workload.put("q14", load);
-		query2Workload.put("q15", load);
-		query2Workload.put("q16", load);
-		query2Workload.put("q17", load);
-		query2Workload.put("q18", load);
-		query2Workload.put("q19", load);
-		query2Workload.put("q20", load);
-		query2Workload.put("q21", load);
-		query2Workload.put("q22", load);
-		query2Workload.put("insert_kafka", new Workload(10000000, 0, 1, 3, 46));
+		Workload oaLoad = oaSuite.getQueryWorkload("q0");
+		assertNotNull(oaLoad);
+		assertEquals(50000L, oaLoad.getTps());
+		assertEquals(12500000L, oaLoad.getEventsNum());
+		assertEquals(1, oaLoad.getPersonProportion());
+		assertEquals(3, oaLoad.getAuctionProportion());
+		assertEquals(46, oaLoad.getBidProportion());
+		assertEquals(100, oaLoad.getNumInFlightAuctions());
+		assertEquals(1L, oaLoad.getOutOfOrderGroupSize());
+		assertEquals(0.0, oaLoad.getProbDelayedEvent(), 0.0);
 
-		WorkloadSuite expected = new WorkloadSuite(query2Workload);
+		assertEquals(oaLoad.toString(), oaSuite.getQueryWorkload("q20_unique").toString());
+		assertEquals(oaLoad.toString(), oaSuite.getQueryWorkload("q20_unique_modified").toString());
+		assertNull(oaSuite.getQueryWorkload("insert_kafka"));
 
-		assertEquals(expected.toString(), WorkloadSuite.fromConf(conf, CATEGORY_OA).toString());
-
-		query2Workload = new HashMap<>();
-		query2Workload.put("q0", load);
-		query2Workload.put("q1", load);
-		query2Workload.put("q2", load);
-		query2Workload.put("q3", load);
-		query2Workload.put("insert_kafka", new Workload(10000000, 0, 1, 3, 46));
-
-		expected = new WorkloadSuite(query2Workload);
-
-		assertEquals(expected.toString(), WorkloadSuite.fromConf(conf, CATEGORY_CEP).toString());
+		Workload cepLoad = cepSuite.getQueryWorkload("q0");
+		assertNotNull(cepLoad);
+		assertEquals(oaLoad.toString(), cepLoad.toString());
+		assertNotNull(cepSuite.getQueryWorkload("q3"));
+		assertNull(cepSuite.getQueryWorkload("q4"));
 	}
 
 	@Test
