@@ -34,6 +34,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -89,7 +90,8 @@ public class QueryRunner {
 			JobBenchmarkMetric metrics = metricReporter.reportMetric(jobId,
                     workload.getEventsNum(),
                     workload.getKafkaServers() != null,
-                    workload.getKafkaServers() != null);
+                    workload.getKafkaServers() != null,
+                    Duration.ZERO);
 			// cancel job
 			System.out.println("Stop job query " + queryName);
 			LOG.info("Stop job query " + queryName);

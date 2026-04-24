@@ -119,13 +119,61 @@ public class MetricReporter {
 		return flinkRestClient.isJobRunning(jobId);
 	}
 
-	private void waitForOrJobFinish(String jobId, Duration duration, boolean isKafkaUsed) {
-		// The TPS drop to 0 which means job is finished or specific interval for tps mode
+	private void waitAfterCompletion(Duration postEventCompletionDelay, String completionReason) {
+		if (!postEventCompletionDelay.isZero() && !postEventCompletionDelay.isNegative()) {
+			String message = String.format(
+				"Holding job for %s s after %s before teardown to allow a final RocksDB stats dump.",
+				postEventCompletionDelay.getSeconds(),
+				completionReason);
+			System.out.println(message);
+			LOG.info(message);
+			waitFor(postEventCompletionDelay);
+		}
+	}
+
+	private long waitForOrJobFinish(
+			String jobId,
+			long eventsNum,
+			Duration duration,
+			Duration postEventCompletionDelay) {
+		long lastRecords = -1L;
+		long lastChangeTime = System.currentTimeMillis();
+		final long idleTimeoutMs = 30_000L;
 		Deadline deadline = Deadline.fromNow(duration);
 		while (isJobRunning(jobId) && deadline.hasTimeLeft()) {
-            if (isKafkaUsed && jobIsFinished()) break;
+			if (eventsNum > 0) {
+				long totalRecords = flinkRestClient.getTotalSourceReadRecords(jobId);
+				if (totalRecords < 0) {
+					return System.currentTimeMillis();
+				}
+				if (totalRecords >= eventsNum) {
+					long finishedAt = System.currentTimeMillis();
+					waitAfterCompletion(postEventCompletionDelay, "event threshold completion");
+					return finishedAt;
+				}
+				if (totalRecords != lastRecords) {
+					lastChangeTime = System.currentTimeMillis();
+					lastRecords = totalRecords;
+				}
+				long idleMs = System.currentTimeMillis() - lastChangeTime;
+				if (totalRecords > 0 && idleMs >= idleTimeoutMs) {
+					String message = String.format(
+						"Source write-records stable at %s for %sms, treating job %s as complete before target %s.",
+						totalRecords,
+						idleMs,
+						jobId,
+						eventsNum);
+					System.out.println(message);
+					LOG.info(message);
+					long finishedAt = System.currentTimeMillis();
+					waitAfterCompletion(postEventCompletionDelay, "idle completion");
+					return finishedAt;
+				}
+			} else if (jobIsFinished()) {
+				return System.currentTimeMillis();
+			}
 			try {
-				Thread.sleep(100L);
+				Thread.sleep(eventsNum > 0 ? 1000L : 100L);
 			} catch (InterruptedException e) {
 				throw new RuntimeException(e);
 			}
@@ -133,6 +181,7 @@ public class MetricReporter {
 				throw new RuntimeException(error);
 			}
 		}
+		return System.currentTimeMillis();
 	}
 
 	private void waitForOrJobRunning(String jobId) {
@@ -162,7 +211,12 @@ public class MetricReporter {
 		return false;
 	}
 
-	public JobBenchmarkMetric reportMetric(String jobId, long eventsNum, boolean trim, boolean isKafkaUsed) {
+	public JobBenchmarkMetric reportMetric(
+			String jobId,
+			long eventsNum,
+			boolean trim,
+			boolean isKafkaUsed,
+			Duration postEventCompletionDelay) {
 		long startTime = System.currentTimeMillis();
 		waitForOrJobRunning(jobId);
 		long jobStartTime = System.currentTimeMillis();
@@ -172,13 +226,12 @@ public class MetricReporter {
 		if (eventsNum == 0) {
 			System.out.printf("Start to monitor metrics for %s seconds.%n", monitorDuration.getSeconds());
 		} else {
-			System.out.println("Start to monitor metrics until job is finished.");
+			System.out.println("Start to monitor metrics until the configured event threshold is reached.");
 		}
 		submitMonitorThread(jobId, eventsNum);
 		// monitorDuration is Long.MAX_VALUE in event number mode
-		waitForOrJobFinish(jobId, monitorDuration, isKafkaUsed);
-
-		long endTime = System.currentTimeMillis();
+		long effectiveEndTime =
+				waitForOrJobFinish(jobId, eventsNum, monitorDuration, postEventCompletionDelay);
 
 		// cleanup the resource
 		this.close();
@@ -210,7 +263,7 @@ public class MetricReporter {
 		double avgTps = sumTps / realMetrics.size();
 		double avgCpu = sumCpu / realMetrics.size();
 		JobBenchmarkMetric metric = new JobBenchmarkMetric(
-				avgTps, avgCpu, eventsNum, endTime - jobStartTime, jobStartTime - startTime);
+				avgTps, avgCpu, eventsNum, effectiveEndTime - jobStartTime, jobStartTime - startTime);
 
 		String message;
 		if (eventsNum == 0) {

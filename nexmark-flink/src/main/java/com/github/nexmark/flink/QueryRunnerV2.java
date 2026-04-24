@@ -26,6 +26,9 @@ import com.github.nexmark.flink.metric.MetricReporter;
 import com.github.nexmark.flink.metric.Savepoint;
 import com.github.nexmark.flink.workload.Workload;
 
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +40,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -48,6 +52,9 @@ import java.util.regex.Pattern;
 public class QueryRunnerV2 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(QueryRunnerV2.class);
+	private static final String ROCKSDB_STATS_DUMP_PERIOD_KEY =
+			"state.backend.rocksdb.stats-dump-period-sec";
+	private static final int DEFAULT_ROCKSDB_STATS_DUMP_PERIOD_SEC = 15;
 
 	private final String queryName;
 	private final Workload workload;
@@ -56,6 +63,7 @@ public class QueryRunnerV2 {
 	private final Path flinkDist;
 	private final MetricReporter metricReporter;
 	private final FlinkRestClient flinkRestClient;
+	private final int rocksdbStatsDumpPeriodSec;
 
 	public QueryRunnerV2(String queryName, Workload workload, Path location, Path flinkDist, MetricReporter metricReporter, FlinkRestClient flinkRestClient, String category) {
 		this.queryName = queryName;
@@ -66,6 +74,7 @@ public class QueryRunnerV2 {
 		this.flinkDist = flinkDist;
 		this.metricReporter = metricReporter;
 		this.flinkRestClient = flinkRestClient;
+		this.rocksdbStatsDumpPeriodSec = resolveRocksdbStatsDumpPeriodSec(flinkDist);
 	}
 
 	public JobBenchmarkMetric run() {
@@ -80,6 +89,7 @@ public class QueryRunnerV2 {
 			LOG.info("Start the warmup for " + workload.getWarmupEvents() + " events.");
 			String warmupJob = runWarmup(workload.getWarmupEvents(), totalEvents);
 			long waited = waitForOrJobFinish(warmupJob, workload.getWarmupEvents());
+			waited += waitForRocksdbStatsDumpWindow("warmup");
 			Tuple2<Savepoint, Long> cancelResult = cancelJob(warmupJob, true);
 			savepoint = cancelResult.f0;
 			waited += cancelResult.f1;
@@ -101,7 +111,8 @@ public class QueryRunnerV2 {
 			JobBenchmarkMetric metrics = metricReporter.reportMetric(jobId,
                     workload.getEventsNum(),
                     false,
-                    workload.getKafkaServers() != null);
+                    workload.getKafkaServers() != null,
+					Duration.ofSeconds(rocksdbStatsDumpPeriodSec));
 			// cancel job
 			System.out.println("Stop job query " + queryName);
 			LOG.info("Stop job query " + queryName);
@@ -109,6 +120,54 @@ public class QueryRunnerV2 {
 			return metrics;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
+		}
+	}
+
+	private long waitForRocksdbStatsDumpWindow(String phaseName) {
+		if (rocksdbStatsDumpPeriodSec <= 0) {
+			LOG.info(
+				"Skipping RocksDB post-{} wait because {}={} disables periodic stats dumps.",
+				phaseName,
+				ROCKSDB_STATS_DUMP_PERIOD_KEY,
+				rocksdbStatsDumpPeriodSec);
+			return 0L;
+		}
+		long waitMillis = rocksdbStatsDumpPeriodSec * 1000L;
+		System.out.println(
+			"Waiting " + rocksdbStatsDumpPeriodSec
+				+ "s before " + phaseName
+				+ " teardown to allow a final RocksDB stats dump.");
+		LOG.info(
+			"Waiting {} ms before {} teardown to allow a final RocksDB stats dump.",
+			waitMillis,
+			phaseName);
+		try {
+			Thread.sleep(waitMillis);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new RuntimeException(
+				"Interrupted while waiting for RocksDB stats dump window after " + phaseName,
+				e);
+		}
+		return waitMillis;
+	}
+
+	private static int resolveRocksdbStatsDumpPeriodSec(Path flinkDist) {
+		try {
+			Path flinkConfDir = flinkDist.resolve("conf");
+			Configuration configuration = GlobalConfiguration.loadConfiguration(
+				flinkConfDir.toString());
+			return configuration.get(
+				ConfigOptions.key(ROCKSDB_STATS_DUMP_PERIOD_KEY)
+					.intType()
+					.defaultValue(DEFAULT_ROCKSDB_STATS_DUMP_PERIOD_SEC));
+		} catch (Throwable t) {
+			LOG.warn(
+				"Unable to determine {} from Flink configuration, using default {}s.",
+				ROCKSDB_STATS_DUMP_PERIOD_KEY,
+				DEFAULT_ROCKSDB_STATS_DUMP_PERIOD_SEC,
+				t);
+			return DEFAULT_ROCKSDB_STATS_DUMP_PERIOD_SEC;
 		}
 	}
 
@@ -227,7 +286,7 @@ public class QueryRunnerV2 {
 		Map<String, String> varsMap = initializeVarsMap();
 		varsMap.put("EVENTS_NUM", String.valueOf(totalEvents));
 		varsMap.put("STOP_AT", "-1");
-		varsMap.put("KEEP_ALIVE", "false");
+		varsMap.put("KEEP_ALIVE", "true");
 		List<String> sqlLines = initializeAllSqlLines(varsMap, queryName, savepoint);
 		return submitSQLJob(sqlLines);
 	}

@@ -31,7 +31,7 @@ nexmark.metric.reporter.port: 9098
 
 nexmark.workload.suite.tp-200m.events.num: 12500000
 nexmark.workload.suite.tp-200m.tps: 100000
-nexmark.workload.suite.tp-200m.queries: "q0,q1,q2,q3,q4,q4_unique,q5,q7,q8,q9,q9_unique,q10,q11,q12,q13,q14,q15,q16,q17,q18,q18_unique,q19,q19_unique,q20,q20_unique,q20_unique_modified,q21,q22"
+nexmark.workload.suite.tp-200m.queries: "q0,q1,q2,q3,q4,q4_unique,q5,q7,q7_unique,q8,q9,q9_unique,q10,q11,q12,q13,q14,q15,q16,q17,q18,q18_unique,q19,q19_unique,q20,q20_unique,q20_unique_modified,q21,q22"
 nexmark.workload.suite.tp-200m.queries.cep: "q0,q1,q2,q3"
 nexmark.workload.suite.tp-200m.warmup.events.num: 50000000
 
