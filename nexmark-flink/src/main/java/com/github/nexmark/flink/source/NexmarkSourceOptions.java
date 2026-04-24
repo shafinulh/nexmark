@@ -224,6 +224,14 @@ public class NexmarkSourceOptions {
 			.intType()
 			.defaultValue(100);
 
+	/**
+	 * First event id for the generator. Allows resuming generation from a specific position.
+	 */
+	public static final ConfigOption<Long> FIRST_EVENT_ID = ConfigOptions
+			.key("first-event-id")
+			.longType()
+			.defaultValue(1L);
+
 	public static NexmarkConfiguration convertToNexmarkConfiguration(ReadableConfig config) {
 		NexmarkConfiguration nexmarkConf = new NexmarkConfiguration();
 		nexmarkConf.rateShape = config.get(RATE_SHAPE);

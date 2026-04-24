@@ -52,10 +52,11 @@ public class NexmarkTableSourceFactory implements DynamicTableSourceFactory {
 			baseTime = System.currentTimeMillis();
 		}
 		nexmarkConf.numEventGenerators = parallelism;
+		long firstEventId = config.get(NexmarkSourceOptions.FIRST_EVENT_ID);
 		GeneratorConfig generatorConfig = new GeneratorConfig(
 			nexmarkConf,
 			baseTime,
-			1,
+			firstEventId,
 			nexmarkConf.numEvents,
 			nexmarkConf.stopAtEvent,
 			1);
@@ -101,6 +102,7 @@ public class NexmarkTableSourceFactory implements DynamicTableSourceFactory {
 		sets.add(NexmarkSourceOptions.PROB_DELAYED_EVENT);
 		sets.add(NexmarkSourceOptions.OUT_OF_ORDER_GROUP_SIZE);
 		sets.add(NexmarkSourceOptions.NUM_IN_FLIGHT_AUCTIONS);
+		sets.add(NexmarkSourceOptions.FIRST_EVENT_ID);
 		return sets;
 	}
 }

@@ -95,6 +95,12 @@ public class GeneratorConfig implements Serializable {
    */
   public final boolean maxEmitSpeed;
 
+  /**
+   * Effective number of generators this config is paced for. This should match the actual split
+   * count at runtime so total source TPS stays stable when parallelism changes.
+   */
+  private final int effectiveNumEventGenerators;
+
   public GeneratorConfig(
       NexmarkConfiguration configuration,
       long baseTime,
@@ -102,16 +108,35 @@ public class GeneratorConfig implements Serializable {
       long maxEventsOrZero,
       long stopAtEvent,
       long firstEventNumber) {
+    this(
+        configuration,
+        baseTime,
+        firstEventId,
+        maxEventsOrZero,
+        stopAtEvent,
+        firstEventNumber,
+        configuration.numEventGenerators);
+  }
 
+  private GeneratorConfig(
+      NexmarkConfiguration configuration,
+      long baseTime,
+      long firstEventId,
+      long maxEventsOrZero,
+      long stopAtEvent,
+      long firstEventNumber,
+      int effectiveNumEventGenerators) {
     this.auctionProportion = configuration.auctionProportion;
     this.personProportion = configuration.personProportion;
     this.bidProportion = configuration.bidProportion;
     this.totalProportion = this.auctionProportion + this.personProportion + this.bidProportion;
 
     this.configuration = configuration;
+    this.effectiveNumEventGenerators = Math.max(1, effectiveNumEventGenerators);
 
     this.interEventDelayUs = new double[1];
-    this.interEventDelayUs[0] = 1000000.0  / configuration.firstEventRate  * configuration.numEventGenerators;
+    this.interEventDelayUs[0] =
+        1000000.0 / configuration.firstEventRate * this.effectiveNumEventGenerators;
     this.stepLengthSec = configuration.rateShape.stepLengthSec(configuration.ratePeriodSec);
     this.baseTime = baseTime;
     this.firstEventId = firstEventId;
@@ -139,14 +164,27 @@ public class GeneratorConfig implements Serializable {
 
   public GeneratorConfig reconfigure(GeneratorConfig configuration, boolean clearStopAtEvent) {
     return new GeneratorConfig(
-        configuration.configuration, baseTime, firstEventId, maxEvents, clearStopAtEvent ? -1L : stopAtEvent, firstEventNumber);
+        configuration.configuration,
+        baseTime,
+        firstEventId,
+        maxEvents,
+        clearStopAtEvent ? -1L : stopAtEvent,
+        firstEventNumber,
+        effectiveNumEventGenerators);
   }
 
   /** Return a copy of this config. */
   public GeneratorConfig copy() {
     GeneratorConfig result;
     result =
-        new GeneratorConfig(configuration, baseTime, firstEventId, maxEvents, stopAtEvent, firstEventNumber);
+        new GeneratorConfig(
+            configuration,
+            baseTime,
+            firstEventId,
+            maxEvents,
+            stopAtEvent,
+            firstEventNumber,
+            effectiveNumEventGenerators);
     return result;
   }
 
@@ -158,8 +196,8 @@ public class GeneratorConfig implements Serializable {
   public List<GeneratorConfig> split(int n) {
     List<GeneratorConfig> results = new ArrayList<>();
     if (n == 1) {
-      // No split required.
-      results.add(this);
+      // No split required, but still normalize pacing against the runtime split count.
+      results.add(copyWith(firstEventId, maxEvents, stopAtEvent, firstEventNumber, 1));
     } else {
       long subMaxEvents = maxEvents / n;
       long subFirstEventId = firstEventId;
@@ -170,7 +208,7 @@ public class GeneratorConfig implements Serializable {
           subMaxEvents = maxEvents - subMaxEvents * (n - 1);
           subValidEvents = stopAtEvent - subValidEvents * (n - 1);
         }
-        results.add(copyWith(subFirstEventId, subMaxEvents, subValidEvents, firstEventNumber));
+        results.add(copyWith(subFirstEventId, subMaxEvents, subValidEvents, firstEventNumber, n));
         subFirstEventId += subMaxEvents;
       }
     }
@@ -180,7 +218,30 @@ public class GeneratorConfig implements Serializable {
   /** Return copy of this config except with given parameters. */
   public GeneratorConfig copyWith(long firstEventId, long maxEvents, long stopAtEvents, long firstEventNumber) {
     return new GeneratorConfig(
-            configuration, baseTime, firstEventId, maxEvents, stopAtEvents, firstEventNumber);
+            configuration,
+            baseTime,
+            firstEventId,
+            maxEvents,
+            stopAtEvents,
+            firstEventNumber,
+            effectiveNumEventGenerators);
+  }
+
+  /** Return copy of this config except with given parameters and effective generator count. */
+  public GeneratorConfig copyWith(
+      long firstEventId,
+      long maxEvents,
+      long stopAtEvents,
+      long firstEventNumber,
+      int effectiveNumEventGenerators) {
+    return new GeneratorConfig(
+            configuration,
+            baseTime,
+            firstEventId,
+            maxEvents,
+            stopAtEvents,
+            firstEventNumber,
+            effectiveNumEventGenerators);
   }
 
   /** Return an estimate of the bytes needed by {@code numEvents}. */
