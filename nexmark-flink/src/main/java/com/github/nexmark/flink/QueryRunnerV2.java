@@ -300,6 +300,7 @@ public class QueryRunnerV2 {
 		varsMap.put("NEXMARK_DIR", location.toFile().getAbsolutePath());
 		varsMap.put("SUBMIT_TIME", submitTime.toString());
 		varsMap.put("BASE_TIME_MILLIS", String.valueOf(baseTimeMillis));
+		varsMap.put("FIRST_EVENT_ID", "1");
 		varsMap.put("FLINK_HOME", flinkDist.toFile().getAbsolutePath());
 		varsMap.put("TPS", String.valueOf(workload.getTps()));
 		varsMap.put("PERSON_PROPORTION", String.valueOf(workload.getPersonProportion()));
