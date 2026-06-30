@@ -152,6 +152,12 @@ public class FlinkRestClient {
 		try {
 			JsonNode jsonNode = NexmarkUtils.MAPPER.readTree(response);
 			String state = jsonNode.get("state").asText();
+			if (state.equalsIgnoreCase("FAILING")
+					|| state.equalsIgnoreCase("FAILED")
+					|| state.equalsIgnoreCase("CANCELLING")
+					|| state.equalsIgnoreCase("CANCELED")) {
+				throw new RuntimeException("Job " + jobId + " reached terminal or failing state: " + state);
+			}
 			if (!state.equalsIgnoreCase("RUNNING")) {
 				return false;
 			}
@@ -362,9 +368,27 @@ public class FlinkRestClient {
 		String response = executeAsString(url);
 		try {
 			JsonNode jsonNode = NexmarkUtils.MAPPER.readTree(response);
+			JsonNode latest = jsonNode.get("latest");
+			JsonNode checkpoint = null;
+			if (latest != null && !latest.isNull()) {
+				checkpoint = latest.get("savepoint");
+				if (checkpoint == null || checkpoint.isNull()) {
+					checkpoint = latest.get("completed");
+				}
+			}
+			if (checkpoint == null || checkpoint.isNull()) {
+				throw new RuntimeException("No completed checkpoint or savepoint found.");
+			}
+			JsonNode path = checkpoint.get("external_path");
+			if (path == null || path.isNull()) {
+				path = checkpoint.get("location");
+			}
+			if (path == null || path.isNull()) {
+				throw new RuntimeException("Completed checkpoint or savepoint is missing a path.");
+			}
 			return new Savepoint(
-					Savepoint.Status.valueOf(jsonNode.get("latest").get("completed").get("status").asText()),
-					jsonNode.get("latest").get("completed").get("external_path").asText());
+					Savepoint.Status.valueOf(checkpoint.get("status").asText()),
+					path.asText());
 		} catch (Throwable e) {
 			throw new RuntimeException("The response is not a valid JSON string:\n" + response, e);
 		}
